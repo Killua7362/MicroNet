@@ -5,6 +5,12 @@ class SGD:
         self.learning_rate  = lr
 
     def update_params(self,layer):
-        layer.weights += (-self.learning_rate * layer.dweights)
-        layer.bias += (-self.learning_rate * layer.dbias)
+        if hasattr(layer,'weights'):
+            layer.weights += (-self.learning_rate * layer.dweights)
+        if hasattr(layer,'bias'):
+            layer.bias += (-self.learning_rate * layer.dbias)
+        if hasattr(layer,'dbeta'):
+            layer.beta += (-self.learning_rate * layer.dbeta)
+        if hasattr(layer,'dgamma'):
+            layer.gamma +=(-self.learning_rate * layer.dgamma)
 

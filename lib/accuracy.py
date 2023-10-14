@@ -8,9 +8,11 @@ class Accuracy:
         self.accum_sum += np.sum(comparisons)
         self.accum_count += len(comparisons)
         return accuracy
+    
     def calculate_accum(self):
         accuracy= self.accum_sum/self.accum_count
         return accuracy
+    
     def new_pass(self):
         self.accum_sum = 0
         self.accum_count = 0

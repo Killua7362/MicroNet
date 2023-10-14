@@ -3,10 +3,11 @@ import os
 import cv2
 from lib.layers import Dense
 from lib.accuracy import Accuracy_Categorical
-from lib.activations import SoftMax,Relu
+from lib.activations import SoftMax,Relu,Gelu
 from lib.losses import CategoricalCrossEntropy
-from lib.layers import Dense
+from lib.layers import Dense,LayerNorm
 from lib import Model
+from lib.optimizers import SGD
 
 def load_dataset(dataset,path):
     labels = os.listdir(os.path.join(path, dataset))
@@ -15,7 +16,6 @@ def load_dataset(dataset,path):
     for label in labels:
         for file in os.listdir(os.path.join(path, dataset, label)):
             image = cv2.imread(os.path.join(path, dataset, label, file),cv2.IMREAD_UNCHANGED)
-
             X.append(image)
             y.append(label)
     return np.array(X),np.array(y).astype('uint8')
@@ -31,12 +31,15 @@ X_test = (X_test.reshape(X_test.shape[0], -1).astype(np.float32) -127.5) / 127.5
 
 model = Model()
 # Add layers
+model.add(LayerNorm())
 model.add(Dense(X.shape[1], 64))
-model.add(Relu())
+model.add(Gelu())
+model.add(LayerNorm())
 model.add(Dense(64, 64))
-model.add(Relu())
+model.add(Gelu())
+model.add(LayerNorm())
 model.add(Dense(64, 10))
 model.add(SoftMax())
 model.set(loss=CategoricalCrossEntropy(),optimizer=SGD(lr=0.001),accuracy=Accuracy_Categorical())
 model.finalize()
-model.train(X,y,validation_data=(X_test,y_test),epochs=1,batch_size=128,print_every=100)
+model.train(X,y,validation_data=(X_test,y_test),epochs=5,batch_size=128,print_every=100)
