@@ -3,44 +3,45 @@ import sys
 
 class BaseLayer:
     instances = []
-    def __init__(self,n_neurons=0,n_inputs=0,weights=None,bias=None,gamma=None,beta=None):
-        self.weights = weights
-        self.bias = bias
-        self.n_neurons = n_neurons
-        self.n_inputs = n_inputs
-        self.gamma = gamma
-        self.beta = beta
-        self.build(n_neurons,n_inputs)
-        
-        self.trainable_params = {}
+    def __init__(self):
         BaseLayer.instances.append(self)
     
     def __call__(self,inputs):
         self.forward(inputs)
         return self.output
+
+    def forward(self,inputs):
+        self.build(inputs)
          
-    def build(self,n_neurons,n_inputs):
-        if self.bias is None:
-            self.bias = np.zeros((1,self.n_neurons))
-        if self.weights is None:
-            self.weights = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
-        if self.gamma is None:
-            self.gamma = np.ones(n_inputs)
-        if self.beta is None:
-            self.beta = np.zeros(n_inputs)
+    def load_params(self,params):
+        from lib.utils import update_dict
+        self.trainable_params = update_dict(self.trainable_params,params)
 
 class Dense(BaseLayer):
-    def __init__(self,/,n_inputs=0,n_neurons=0,**kwargs):
+    def __init__(self,/,n_inputs=0,n_neurons=0):
         self.n_neurons =n_neurons
         self.n_inputs = n_inputs
-        super().__init__(n_inputs=n_inputs,n_neurons=n_neurons,**kwargs)
         
-        self.trainable_params = {'bias':None,'weights':None}
+        self.trainable_params = {'b':None,'w':None}
+        super().__init__()    
     
-    def load_params(**kwargs):
-            pass
-        
+    def build(self,inputs):
+        if self.n_inputs == 0:
+            self.n_inputs = inputs.shape[-1]
+        if self.trainable_params['b'] is None:
+            self.trainable_params['b'] = np.zeros((1,self.n_neurons))
+        self.bias = self.trainable_params['b']
+        if self.trainable_params['w'] is None:
+            self.trainable_params['w'] = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
+        self.weights = self.trainable_params['w']
+        if self.n_neurons == 0:
+            if self.weights is None:
+                self.n_neurons = self.n_inputs
+            else:
+                self.n_neurons = self.weights.shape[0]
+           
     def forward(self,inputs):
+        super().forward(inputs)
         self.inputs = inputs
         self.output = np.dot(inputs,self.weights) + self.bias
         
@@ -56,15 +57,25 @@ class Layer_input:
 class LayerNorm(BaseLayer):
     def __init__(self,gamma=None,beta=None,epsilon=1e-5):
         self.epsilon = epsilon
-        super().__init__(gamma=gamma,beta=beta)
+        self.trainable_params = {'g':gamma,'b':beta}
+        super().__init__()
     
+    def build(self,inputs):
+        if self.trainable_params ['g'] is None:
+            self.trainable_params['g'] = np.ones(inputs.shape[-1])
+        self.gamma = self.trainable_params['g']
+        if self.trainable_params['b'] is None:
+            self.trainable_params['b'] = np.zeros(inputs.shape[-1])
+        self.beta= self.trainable_params['b']
+        
     def forward(self,inputs):
+        super().forward(inputs)
         self.inputs = inputs
         mean = np.mean(inputs,axis=-1,keepdims=True)
         self.variance = np.var(inputs,axis=-1,keepdims=True)
         self.inputs_normalized =(inputs-mean) /np.sqrt(self.variance+self.epsilon)
         self.output = self.gamma * self.inputs_normalized +self.beta
-    
+
     def backward(self,dvalues):
         self.dgamma = np.sum(dvalues * self.inputs_normalized, axis=1, keepdims=True)
         self.dbeta = np.sum(dvalues,axis=1,keepdims=True)
