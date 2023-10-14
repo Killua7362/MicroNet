@@ -30,10 +30,10 @@ def update_dict(a,b):
             raise KeyError(f'The key {key} does not exist')
     return a 
 
-def load_params(params):
+def load_params(model,params):
     from lib.layers import BaseLayer
-    if BaseLayer.instances == []:
+    if model.instances == []:
         raise AttributeError(f'BaseLayer instance is empty. do not call this function without initializing the model')
     params = get_flattended_weights(params)    
-    for i,val in enumerate(BaseLayer.instances):
+    for i,val in enumerate(model.instances):
         val.trainable_params = update_dict(val.trainable_params,params[i])

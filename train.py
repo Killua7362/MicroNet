@@ -5,7 +5,7 @@ from lib.layers import Dense
 from lib.accuracy import Accuracy_Categorical
 from lib.activations import SoftMax,Relu,Gelu
 from lib.losses import CategoricalCrossEntropy
-from lib.layers import Dense,LayerNorm
+from lib.layers import Dense,LayerNorm,BaseLayer
 from lib import Model
 from lib.optimizers import SGD
 
@@ -31,7 +31,6 @@ X_test = (X_test.reshape(X_test.shape[0], -1).astype(np.float32) -127.5) / 127.5
 
 model = Model()
 # Add layers
-model.add(LayerNorm())
 model.add(Dense(X.shape[1], 64))
 model.add(Gelu())
 model.add(LayerNorm())

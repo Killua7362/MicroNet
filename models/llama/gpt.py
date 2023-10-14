@@ -6,7 +6,7 @@ import json
 
 sys.path.insert(0,os.path.abspath(""))
 
-from lib import Gelu,Dense,Model,SoftMax,LayerNorm,BaseLayer,load_params
+from lib import Gelu,Dense,SoftMax,LayerNorm,load_params,Model
 from encoder import get_encoder
 from utils import get_param_dict
 
@@ -59,7 +59,8 @@ class TransformerBlock:
         return inputs
 
 
-class GPT:
+
+class GPT(Model):
     def __init__(self,wte,wpe,n_blocks=4,n_head=4):
         self.wte = wte
         self.wpe = wpe
@@ -67,18 +68,23 @@ class GPT:
         for _ in range(n_blocks):
             self.transformer_blocks.append(TransformerBlock(n_heads=n_head))
         self.layer_norm = LayerNorm()
+        super().__init__()
     
-    def __call__(self,inputs):
+    def forward(self,inputs):
         inputs = self.wte[inputs] + self.wpe[range(len(inputs))]
         for block in self.transformer_blocks:
             inputs = block(inputs)
         inputs = self.layer_norm(inputs)
         return inputs @ self.wte.T
     
+    def __call__(self,inputs):
+        return self.forward(inputs)
+    
 def regress(inputs,n_tokens_gen,n_head,params):
     from tqdm import tqdm
+    
     gpt = GPT(params['wte'],params['wpe'],n_blocks=len(params['blocks']),n_head=n_head)
-    load_params(params)
+    load_params(gpt,params)
     for _ in tqdm(range(n_tokens_gen),'generating'):
         logits = gpt(inputs)
         next_id = np.argmax(logits[-1])
@@ -95,5 +101,5 @@ params = get_param_dict(check_point,hparams)
 encoder = get_encoder(model_name,models_dir)
 
 ids = encoder.encode(text)
-out = regress(ids,40,hparams['n_head'],params)
+out = regress(ids,1,hparams['n_head'],params)
 print(encoder.decode(out))
