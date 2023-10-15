@@ -21,7 +21,6 @@ class FeedForward:
         inputs = self.dense_2(inputs) 
         return inputs
 
-
 class Attention:
     def __init__(self):
         self.softmax = SoftMax()
@@ -101,5 +100,5 @@ params = get_param_dict(check_point,hparams)
 encoder = get_encoder(model_name,models_dir)
 
 ids = encoder.encode(text)
-out = regress(ids,1,hparams['n_head'],params)
+out = regress(ids,40,hparams['n_head'],params)
 print(encoder.decode(out))

@@ -5,3 +5,4 @@ from lib.activations import *
 from lib.layers import * 
 from lib.model import * 
 from lib.utils import *
+from lib.tensor import *

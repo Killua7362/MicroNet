@@ -1,5 +1,6 @@
 import numpy as np
 from lib.layers import BaseLayer
+from lib.tensor import Tensor
 
 ##these are not trainable
 
@@ -21,6 +22,11 @@ class Gelu(BaseLayer):
         super().__init__()
     
     def forward(self,inputs):
+        if isinstance(inputs,Tensor):
+            self.inputs = inputs.data
+        else:
+            self.inputs = inputs
+
         self.inputs = inputs
         self.cumm_dist =  0.5  * (1 + np.tanh(np.sqrt(2 / np.pi) * (inputs + 0.044715 * inputs**3)))
         self.output = self.cumm_dist * inputs
@@ -28,6 +34,7 @@ class Gelu(BaseLayer):
     def backward(self,dvalues):
         prob_dist = (np.exp(-self.inputs**2 / 2.0) / np.sqrt(2.0 * np.pi))
         self.dinputs= dvalues * (self.cumm_dist+ self.inputs * prob_dist)
+        return self.dinputs
 
     def predictions(self,outputs):
         return outputs

@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+from lib.tensor import Tensor
 
 class BaseLayer:
     instances = []
@@ -15,7 +16,12 @@ class BaseLayer:
         return self.output
 
     def forward(self,inputs):
-        self.build(inputs)
+        if isinstance(inputs,Tensor):
+            self.inputs = inputs.data
+        else:
+            self.inputs = inputs
+            
+        self.build(self.inputs)
          
 class Dense(BaseLayer):
     def __init__(self,/,n_inputs=0,n_neurons=0):
@@ -28,27 +34,26 @@ class Dense(BaseLayer):
     def build(self,inputs):
         if self.n_inputs == 0:
             self.n_inputs = inputs.shape[-1]
-        if self.trainable_params['b'] is None:
-            self.trainable_params['b'] = np.zeros((1,self.n_neurons))
-        self.b = self.trainable_params['b']
+            
+        if self.n_neurons == 0:
+            self.n_neurons = self.n_inputs
+                
         if self.trainable_params['w'] is None:
             self.trainable_params['w'] = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
         self.w = self.trainable_params['w']
-        if self.n_neurons == 0:
-            if self.w is None:
-                self.n_neurons = self.n_inputs
-            else:
-                self.n_neurons = self.w.shape[0]
+        if self.trainable_params['b'] is None:
+            self.trainable_params['b'] = np.zeros((1,self.n_neurons))
+        self.b = self.trainable_params['b']
            
     def forward(self,inputs):
         super().forward(inputs)
-        self.inputs = inputs
         self.output = np.dot(inputs,self.w) + self.b
         
     def backward(self,dvalues):
         self.dw = np.dot(self.inputs.T,dvalues)
         self.db = np.sum(dvalues,axis = 0,keepdims=True)
         self.dinputs = np.dot(dvalues,self.w.T)
+        return self.dinputs
 
 class Layer_input:
     def forward(self,inputs):
@@ -77,7 +82,6 @@ class LayerNorm(BaseLayer):
         inputs_normalized =(inputs-mean) /np.sqrt(variance+self.epsilon)
         self.output = self.g * inputs_normalized + self.b
         self.cache = (inputs_normalized, mean, variance)
-        
     def backward(self,dvalues):
         inputs_normalized, mean, variance = self.cache
         N,D = self.inputs.shape
