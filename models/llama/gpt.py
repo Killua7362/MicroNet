@@ -6,7 +6,7 @@ import json
 
 sys.path.insert(0,os.path.abspath(""))
 
-from lib import Gelu,Dense,SoftMax,LayerNorm,load_params,Model
+from micro import Gelu,Dense,SoftMax,LayerNorm,load_params,Model
 from encoder import get_encoder
 from utils import get_param_dict
 

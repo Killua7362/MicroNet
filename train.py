@@ -1,13 +1,13 @@
 import numpy as np
 import os
 import cv2
-from lib.layers import Dense
-from lib.accuracy import Accuracy_Categorical
-from lib.activations import SoftMax,Relu,Gelu
-from lib.losses import CategoricalCrossEntropy
-from lib.layers import Dense,LayerNorm,BaseLayer
-from lib import Model
-from lib.optimizers import SGD
+from micro.layers import Dense
+from micro.accuracy import Accuracy_Categorical
+from micro.activations import SoftMax,Relu,Gelu
+from micro.losses import CategoricalCrossEntropy
+from micro.layers import Dense,LayerNorm,BaseLayer
+from micro import Model
+from micro.optimizers import SGD
 
 def load_dataset(dataset,path):
     labels = os.listdir(os.path.join(path, dataset))
