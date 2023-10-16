@@ -102,6 +102,25 @@ class Tensor:
     def __len__(self) -> 'int':
         return len(self.data)
     
+    @property
+    def T(self,indices=None) -> 'Tensor':
+        return _transpose(self,indices=indices)
+    
+def _transpose(t:Tensor,indices=None) -> 'Tensor':
+    if indices is None:
+        indices = tuple(range(t.data.ndim -1,-1,-1))
+    data = t.data.transpose(*indices)
+    hooks = []
+    if t.requires_grad:
+        def backward(gradient):
+            inverse = [0] * len(indices)
+            for i,p in enumerate(indices):
+                inverse[p] = i
+            indices_back = tuple(inverse)
+            gradient = gradient.transpose(*indices_back)
+            return gradient
+    return Tensor(data,requires_grad=t.requires_grad,nodes=hooks)
+
 def _sum(t:Tensor) -> Tensor:
     data = t.data.sum()
     hooks = []
@@ -242,6 +261,16 @@ def _slice(t:Tensor,idxs) -> Tensor:
             grad = np.zeros_like(data)
             grad[idxs] = gradient
             return grad
+        hooks.append(Hooks(t,backward))
     return Tensor(data,nodes=hooks,requires_grad=t.requires_grad)
         
-    
+
+def split(t:Tensor,parts,axis=0):
+    a = t.shape[axis]
+    a = a / parts
+    if (a % 1 != 0.0):
+        raise RuntimeError('Tensor is not equally splittable')
+    arr = []
+    for i in range(parts):
+        arr.append(t[ : ,int(a*i):int(a*(i+1))])
+    return arr
