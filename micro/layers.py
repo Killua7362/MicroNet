@@ -1,10 +1,13 @@
 import numpy as np
-import sys
-from micro.tensor import Tensor
+from micro.tensor import Tensor,Hooks
+from typing import Iterator
+import inspect
+from micro.autograd.parameters import Parameters
 
 class BaseLayer:
     instances = []
     static_instances = []
+    
     def __init__(self):
         if hasattr(self,'trainable_params'):
             BaseLayer.instances.append(self)
@@ -12,22 +15,40 @@ class BaseLayer:
             BaseLayer.static_instances.append(self)
     
     def __call__(self,inputs):
+        hooks = []
         self.forward(inputs)
-        return self.output
+        data = self.output
+        
+        if not isinstance(inputs,Tensor):
+            return data
+        
+        if inputs.requires_grad:
+            hooks.append(Hooks(inputs,self.backward))
+            
+        return Tensor(data,nodes=hooks,requires_grad=inputs.requires_grad)
 
     def forward(self,inputs):
         if isinstance(inputs,Tensor):
             self.inputs = inputs.data
         else:
             self.inputs = inputs
-            
         self.build(self.inputs)
-         
+    
+    def parameters(self) -> Iterator[Parameters]:
+        for name,value in inspect.getmembers(self):
+            if isinstance(value,Parameters):
+                yield value
+            elif isinstance(value,BaseLayer):
+                yield from value.parameters()
+
+    def zero_grad(self):
+        for parameter in self.parameters():
+            parameter.zero_grad()
+            
 class Dense(BaseLayer):
-    def __init__(self,/,n_inputs=0,n_neurons=0):
+    def __init__(self,n_inputs=0,n_neurons=0):
         self.n_neurons =n_neurons
         self.n_inputs = n_inputs
-        
         self.trainable_params = {'b':None,'w':None}
         super().__init__()    
     
@@ -42,11 +63,12 @@ class Dense(BaseLayer):
             self.trainable_params['w'] = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
         self.w = self.trainable_params['w']
         if self.trainable_params['b'] is None:
-            self.trainable_params['b'] = np.zeros((1,self.n_neurons))
+            self.trainable_params['b'] = np.zeros(shape=(self.n_neurons))
         self.b = self.trainable_params['b']
            
     def forward(self,inputs):
         super().forward(inputs)
+        inputs = self.inputs
         self.output = np.dot(inputs,self.w) + self.b
         
     def backward(self,dvalues):
@@ -76,12 +98,13 @@ class LayerNorm(BaseLayer):
         
     def forward(self,inputs):
         super().forward(inputs)
-        self.inputs = inputs
+        inputs = self.inputs
         mean = np.mean(inputs,axis=-1,keepdims=True)
         variance = np.var(inputs,axis=-1,keepdims=True)
         inputs_normalized =(inputs-mean) /np.sqrt(variance+self.epsilon)
         self.output = self.g * inputs_normalized + self.b
         self.cache = (inputs_normalized, mean, variance)
+        
     def backward(self,dvalues):
         inputs_normalized, mean, variance = self.cache
         N,D = self.inputs.shape

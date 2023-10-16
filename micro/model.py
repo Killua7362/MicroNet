@@ -4,13 +4,6 @@ from micro.accuracy import Accuracy_Categorical
 from micro.losses import CategoricalCrossEntropy
 from micro.optimizers import SGD
 
-class BaseModule:
-    baseModule_instances = []
-    def __init__(self):
-        BaseModule.baseModule_instances.append(self)
-        self.instances = BaseLayer.instances.copy()
-        self.static_instances = BaseLayer.static_instances.copy()
-        
 class Model:
     def __init__(self,trainable=False):
         self.layers = []

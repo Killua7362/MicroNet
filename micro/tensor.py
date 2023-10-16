@@ -1,187 +1,247 @@
+from typing import List, NamedTuple,Callable,Optional,Union
 import numpy as np
 
-class Hooks:
-    def __init__(self,tensor,backward):
-        self.tensor = tensor
-        self.grad_fn = backward
+class Hooks(NamedTuple):
+    tensor:'Tensor'
+    grad_fn: Callable[[np.ndarray],np.ndarray]
 
 class Tensor:
-    def __init__(self,data,node=None, op='',label='',backward = lambda:None):
-        self.data = to_array(data)
-        self._prev = node or []
-        self._op = op
-        self._label = label
-        self._backward = backward
-        self._for_test= lambda:None
-        self.shape = self.getshape()  
+    def __init__(self,data,requires_grad=False,nodes=[]):
+        self._data = to_array(data) 
+        self.requires_grad = requires_grad
+        self.nodes = nodes
+        self.shape = self._data.shape
+        self.grad:Optional['Tensor'] = None
+        self.dtype = self._data.dtype
+        if self.requires_grad:
+            self.zero_grad()
+    
+    def __repr__(self) ->str:
+        return f'Tensor(data={self.data}, requires_grad={self.requires_grad})'
+    
+    ##getter and setter
+    @property
+    def data(self) -> np.ndarray:
+        return self._data   
+    
+    @data.setter
+    def data(self,value) -> None:
+        self._data = value
+        self.grad = None
+    
+    def zero_grad(self):
         self.grad = Tensor(np.zeros_like(self.data,dtype=np.float64))
-        self.ndim = 1 if self.shape == 1 or self.shape[0] == 1 else len(self.shape)
-        
-    def getshape(self):    
-        if type(self.data) == np.ndarray:
-            return self.data.shape
-        elif type(self.data) == list:
-            return len(self.data)
-        else:
-            return (1,)
     
-    def __repr__(self):
-        return f'Tensor(data={self.data},label={self._label})'
+    def backward(self,grad:'Tensor'=None):
+        if not self.requires_grad:
+           raise AssertionError('non-requires-grad') 
+       
+        if grad is None:
+            if self.shape == ():
+                grad = Tensor(1.0)
+            else:
+                raise RuntimeError('specify grad for non-0-tensor')
+            
+        self.grad.data = self.grad.data + grad.data
+         
+        for node in self.nodes:
+            back_grad = node.grad_fn(grad.data)      
+            node.tensor.backward(Tensor(back_grad))
     
-    def __len__(self):
-        return len(self.data)
+    def sum(self) -> 'Tensor':
+        return _sum(self)
     
-    def __iter__(self):
-        self.index = 0
-        return self
-
-    def __next__(self): # Python 2: def next(self)
-        if self.index< len(self.data):
-            res = self.data[self.index]
-            self.index+= 1
-            return res 
-        raise StopIteration
-    
-    def __add__(self,other):
+    def __add__(self,other) -> 'Tensor':
         return _add(self,other)
     
-    def __mul__(self,other):
+    def __radd__(self,other) -> 'Tensor':
+        return _add(other,self)
+    
+    def __iadd__(self,other) -> 'Tensor':
+        self.data = self.data + to_tensor(other).data
+        return self
+        
+    def __isub__(self,other) -> 'Tensor':
+        self.data = self.data - to_tensor(other).data
+        return self
+    
+    def __imul__(self,other) -> 'Tensor':
+        self.data = self.data * to_tensor(other).data
+        return self
+        
+    def __mul__(self,other) -> 'Tensor':
         return _mul(self,other)
-      
-    def __pow__(self,other):
-        return _pow(self,other)
-    
-    def sum(self,axis=None,keepdims=False):
-        return _sum(self,axis=axis,keepdims=keepdims)
-    
-    def __truediv__(self, other): # self / other
-        return self * other**-1
 
-    def __rtruediv__(self, other): # other / self
-        return other * self**-1
+    def __rmul__(self,other) -> 'Tensor':
+        return _mul(other,self)
     
-    def __neg__(self): # -self
-        return self * Tensor(-1)
+    def __neg__(self) ->'Tensor':
+        return minus(self)
     
-    def __rmul__(self,other):
-        return _mul(self,other)
-    
-    def __radd__(self,other):
-        return self + other
-  
-    def __radd__(self, other): # other + self
-        return self + other
-    
-    def __sub__(self, other):
+    def __sub__(self,other) -> 'Tensor':
         return self + (-other)
-
-    def __rsub__(self, other): 
+    
+    def __rsub__(self,other) -> 'Tensor':
         return other + (-self)
     
-    def __getitem__(self,index):
-        return self.data[index]
+    def __pow__(self,power) -> 'Tensor':
+        return _pow(self,power)
     
-    def __setitem__(self,index,item):
-        self.data[index] = item
+    def __truediv__(self, other) -> 'Tensor': 
+        return self * other **-1
 
-    def backprop(self,gradient=None):
-        if gradient is None:
-            if self.shape == ():
-                gradient = Tensor(1.0)
-            else:
-                raise RuntimeError('Mention grads')
-            
-        self.grad = self.grad + gradient
+    def __rtruediv__(self, other) -> 'Tensor': # other / self
+        return other * self **-1
+    
+    def __matmul__(self,other) -> 'Tensor':
+        return _matmul(self,other)
+    
+    def __getitem__(self,idxs) -> 'Tensor':
+        return _slice(self,idxs)
+    
+    def __len__(self) -> 'int':
+        return len(self.data)
+    
+def _sum(t:Tensor) -> Tensor:
+    data = t.data.sum()
+    hooks = []
+    if t.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            return gradient * np.ones_like(t.data)
+        hooks.append(Hooks(t,backward))
         
-        prev = self._prev
-        if prev is not None:
-            for node in self._prev:
-                backward_grad = node.grad_fn(gradient)
-                node.tensor.backprop(backward_grad)
-            
+    return Tensor(data,requires_grad=t.requires_grad,nodes=hooks)
 
-def dummy_loss(x):
-    x = x.data
-    x = x.mean()
-    return Tensor(x)
-
-def to_tensor(x):
-    if not isinstance(x,Tensor):
-        return Tensor(x)
-    else:
-        return x
-
-def to_array(x):
-    if isinstance(x,np.ndarray):
-        return x
-    else:
-        return np.array([x])
-
-
-def _add(t1,t2):
-    t1 = to_tensor(t1)   
-    t2 = to_tensor(t2)   
-    
+def _add(t1:Tensor,t2:Tensor) -> Tensor:
+    t1 = to_tensor(t1)
+    t2 = to_tensor(t2)
     data = t1.data + t2.data
     hooks = []
-    op = '+'
-    def backward_1(gradient):
-        ndims_added = gradient.ndim -  t1.ndim
-        for _ in range(ndims_added):
-            gradient = gradient.sum(axis=0)
-        for i,dim in enumerate(t1.shape):
-            if dim == 1:
-                gradient = gradient.sum(axis=i,keepdims=True)
-        return gradient
-        
-    def backward_2(gradient):
-        ndims_added = gradient.ndim - t2.ndim 
-        for _ in range(ndims_added):
-            gradient = gradient.sum(axis=0)
-        for i,dim in enumerate(t2.shape):
-            if dim == 1:
-                gradient = gradient.sum(axis=i,keepdims=True)
-        return gradient
-                    
-    hooks.append(Hooks(t1,backward_1))    
-    hooks.append(Hooks(t2,backward_2))    
-    return Tensor(data,node=hooks,op=op)
-
-def _mul(t1,t2):
-        t1 = to_tensor(t1)
-        t2 = to_tensor(t2)
-        data = t1.data * t2.data
-        hooks = []
-        op ='*'
-        
-        def backward_1(gradient):
-            t1.grad+= t2.data * gradient
-            return t1.grad
+    if t1.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            ndims_added = gradient.ndim - t1.data.ndim
+            for _ in range(ndims_added):
+                gradient = gradient.sum(axis=0)
+            for i,dims in enumerate(t1.shape):
+                if dims == 1:
+                    gradient = gradient.sum(axis=i,keepdims=True)
+            return gradient
+        hooks.append(Hooks(t1,backward))
             
-        def backward_2(gradient):
-            t2.grad += t1.data * gradient
-            return t2.grad
+    if t2.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            ndims_added = gradient.ndim - t2.data.ndim
+            for _ in range(ndims_added):
+                gradient = gradient.sum(axis=0)
+            for i,dims in enumerate(t2.shape):
+                if dims == 1:
+                    gradient = gradient.sum(axis=i,keepdims=True)
+            return gradient
+        hooks.append(Hooks(t2,backward))
+    return Tensor(data=data,requires_grad=t1.requires_grad or t2.requires_grad,nodes=hooks)
+
+def _pow(t,power):
+        t = to_tensor(t)
+        data = t.data ** power 
+        hooks = []
+        if t.requires_grad:
+            def backward(gradient:np.ndarray) -> np.ndarray:
+                return  gradient * power * t.data ** (power-1)
+            hooks.append(Hooks(t,backward))    
+        return Tensor(data=data,requires_grad=t.requires_grad,nodes=hooks)
+
+def _matmul(t1:Tensor,t2:Tensor)->'Tensor':
+    t1 = to_tensor(t1)
+    t2 = to_tensor(t2)
+    data = t1.data @ t2.data
+    hooks = []
+    if t1.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            return gradient @ t2.data.T
+        hooks.append(Hooks(t1,backward))
             
-        hooks.append(Hooks(t1,backward_1))    
-        hooks.append(Hooks(t2,backward_2))    
-        return Tensor(data=data,node=hooks,op=op)
+    if t2.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            return t1.data.T @ gradient
+        hooks.append(Hooks(t2,backward))
+    return Tensor(data=data,requires_grad=t1.requires_grad or t2.requires_grad,nodes=hooks)
 
-def _pow(t1,power):
-        data = t1.data ** power 
-        op = '**'
-        hooks = []
-        def backward(gradient):
-            t1.grad += gradient * (power* (t1.data ** (power-1)))
-            return t1.grad
-        hooks.append(Hooks(t1,backward))    
-        return Tensor(data=data,node=hooks,op=op)
+def _mul(t1:Tensor,t2:Tensor) -> Tensor:
+    t1 = to_tensor(t1)
+    t2 = to_tensor(t2)
+    data = t1.data * t2.data
+    hooks = []
+    if t1.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            gradient = gradient * t2.data
+            ndims_added = gradient.ndim - t1.data.ndim
+            for _ in range(ndims_added):
+                gradient = gradient.sum(axis=0)
+            for i,dims in enumerate(t1.shape):
+                if dims == 1:
+                    gradient = gradient.sum(axis=i,keepdims=True)
+            return gradient
+        hooks.append(Hooks(t1,backward))
+            
+    if t2.requires_grad:
+        def backward(gradient:np.ndarray) -> np.ndarray:
+            gradient = gradient * t1.data
+            ndims_added = gradient.ndim - t2.data.ndim
+            for _ in range(ndims_added):
+                gradient = gradient.sum(axis=0)
+            for i,dims in enumerate(t2.shape):
+                if dims == 1:
+                    gradient = gradient.sum(axis=i,keepdims=True)
+            return gradient
+        hooks.append(Hooks(t2,backward))
+    return Tensor(data=data,requires_grad=t1.requires_grad or t2.requires_grad,nodes=hooks)
 
-def _sum(t,axis=None,keepdims=False):
-        data = t.data.sum(axis=axis,keepdims=keepdims)
-        hooks = []
-        op = 'sum'
+Arrayable = Union[float,int,np.ndarray]
+Tensorable = Union[Tensor,float,np.ndarray]
+
+def to_array(x:Arrayable)->np.ndarray:
+    if isinstance(x,np.ndarray):
+        return x
+    else: 
+        return np.array(x)
+    
+def to_tensor(x:Tensorable) ->Tensor:
+    if isinstance(x,Tensor):
+        return x
+    else:
+        return Tensor(x)
+
+def minus(t:Tensor)->Tensor:
+    t = to_tensor(t)
+    data = -t.data
+    hooks = []
+    if t.requires_grad:
         def backward(gradient):
-            keep = t.data.sum(axis=axis,keepdims=True)
-            return gradient.reshape(keep.shape) + np.zeros_like(t.data)
-        hooks.append(Hooks(t,backward=backward))
-        return Tensor(data=data,node=hooks,op=op)
+            return -gradient
+        hooks.append(Hooks(t,backward))
+    return Tensor(data=data,requires_grad=t.requires_grad,nodes=hooks) 
+
+def dummy_loss(x:Tensor) -> 'Tensor':
+    data = x.data.mean()
+    hooks = []
+    if x.requires_grad:
+        def backward(gradients):
+            num = gradients.shape[0]
+            grad = 1.0/ num
+            return grad * gradients
+        hooks.append(Hooks(x,backward))
+    return Tensor(data,requires_grad=x.requires_grad,nodes=hooks)
+
+def _slice(t:Tensor,idxs) -> Tensor:
+    if isinstance(idxs,Tensor):
+        idxs = idxs.data
+    data = t.data[idxs]
+    hooks = []
+    if t.requires_grad:
+        def backward(gradient):
+            grad = np.zeros_like(data)
+            grad[idxs] = gradient
+            return grad
+    return Tensor(data,nodes=hooks,requires_grad=t.requires_grad)
+        
+    

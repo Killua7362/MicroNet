@@ -6,9 +6,15 @@ import json
 
 sys.path.insert(0,os.path.abspath(""))
 
-from micro import Gelu,Dense,SoftMax,LayerNorm,load_params,Model
+from micro.activations import Gelu,SoftMax
+from micro.layers import Dense,LayerNorm
+from micro.utils import load_params
+from micro.model import Model
 from encoder import get_encoder
 from utils import get_param_dict
+
+
+
 
 class FeedForward:
     def __init__(self):
@@ -26,7 +32,7 @@ class Attention:
         self.softmax = SoftMax()
     
     def __call__(self,q,k,v,mask=None):
-        return self.softmax(q @ k.T / np.sqrt(q.shape[-1])+mask) @ v
+        return self.softmax(q @ k.T / np.sqrt(q.shape[-1])+mask) @ v ## TODO: replace this np.sqrt 
     
 class MultiHeadAttention:
     def __init__(self,n_heads=4):
@@ -100,5 +106,5 @@ params = get_param_dict(check_point,hparams)
 encoder = get_encoder(model_name,models_dir)
 
 ids = encoder.encode(text)
-out = regress(ids,40,hparams['n_head'],params)
+out = regress(ids,1,hparams['n_head'],params)
 print(encoder.decode(out))

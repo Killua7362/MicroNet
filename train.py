@@ -3,10 +3,10 @@ import os
 import cv2
 from micro.layers import Dense
 from micro.accuracy import Accuracy_Categorical
-from micro.activations import SoftMax,Relu,Gelu
+from micro.activations import SoftMax,Gelu
 from micro.losses import CategoricalCrossEntropy
-from micro.layers import Dense,LayerNorm,BaseLayer
-from micro import Model
+from micro.layers import Dense,LayerNorm
+from micro.model import Model
 from micro.optimizers import SGD
 
 def load_dataset(dataset,path):
@@ -30,7 +30,6 @@ X = (X.reshape(X.shape[0], -1).astype(np.float32) - 127.5) / 127.5
 X_test = (X_test.reshape(X_test.shape[0], -1).astype(np.float32) -127.5) / 127.5
 
 model = Model()
-# Add layers
 model.add(Dense(X.shape[1], 64))
 model.add(Gelu())
 model.add(LayerNorm())

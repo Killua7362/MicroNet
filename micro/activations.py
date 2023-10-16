@@ -21,13 +21,12 @@ class Gelu(BaseLayer):
     def __init__(self) -> None:
         super().__init__()
     
+    def build(self,inputs):
+        pass
+    
     def forward(self,inputs):
-        if isinstance(inputs,Tensor):
-            self.inputs = inputs.data
-        else:
-            self.inputs = inputs
-
-        self.inputs = inputs
+        super().forward(inputs)
+        inputs = self.inputs
         self.cumm_dist =  0.5  * (1 + np.tanh(np.sqrt(2 / np.pi) * (inputs + 0.044715 * inputs**3)))
         self.output = self.cumm_dist * inputs
     
@@ -40,12 +39,18 @@ class Gelu(BaseLayer):
         return outputs
 
 class SoftMax(BaseLayer):
+    def __init__(self):
+        super().__init__()
+
+    def build(self,inputs):
+        pass
+    
     def forward(self,inputs):
-        self.inputs = inputs
+        super().forward(inputs)
+        inputs = self.inputs
         exp_values = np.exp(inputs-np.max(inputs,axis=-1,keepdims=True))
         probabilities = exp_values / np.sum(exp_values,axis=-1,keepdims=True)
         self.output = probabilities
-        super().__init__()
         
     def backward(self,dvalues):
         self.dinputs = np.empty_like(dvalues)
