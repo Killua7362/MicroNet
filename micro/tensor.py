@@ -274,3 +274,22 @@ def split(t:Tensor,parts,axis=0):
     for i in range(parts):
         arr.append(t[ : ,int(a*i):int(a*(i+1))])
     return arr
+
+def hstack(arrays:List[Tensor]) -> Tensor:
+    requires_grad = False
+    hooks = []
+    data = arrays[0].data
+    for t in range(1,len(arrays)):
+        requires_grad = arrays[t-1].requires_grad or requires_grad
+        data = np.hstack([data,arrays[t].data])
+        if arrays[t-1].requires_grad:
+            def backward(gradient):
+                return gradient[t-1:t-1+arrays[t-1].shape[0]]
+            hooks.append(Hooks(arrays[t-1],backward))
+    requires_grad = arrays[-1].requires_grad or requires_grad
+    if arrays[-1].requires_grad:
+        def backward(gradient):
+            return gradient[len(arrays)-1:len(arrays)-1+arrays[-1].shape[0]]
+        hooks.append(Hooks(arrays[-1],backward))
+    return Tensor(data,requires_grad=requires_grad,nodes=hooks)
+
