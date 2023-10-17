@@ -63,9 +63,7 @@ class TransformerBlock:
 
 
 class GPT(Model):
-    def __init__(self,wte,wpe,n_blocks=4,n_head=4):
-        self.wte = wte
-        self.wpe = wpe
+    def __init__(self,n_blocks=4,n_head=4):
         self.transformer_blocks = []
         for _ in range(n_blocks):
             self.transformer_blocks.append(TransformerBlock(n_heads=n_head))
@@ -73,22 +71,23 @@ class GPT(Model):
         super().__init__()
     
     def forward(self,inputs):
-        inputs = self.wte[inputs] + self.wpe[range(len(inputs))]
         for block in self.transformer_blocks:
             inputs = block(inputs)
-        inputs = self.layer_norm(inputs)
-        return inputs @ self.wte.T
+        return self.layer_norm(inputs)
     
     def __call__(self,inputs):
         return self.forward(inputs)
     
 def regress(inputs,n_tokens_gen,n_head,params):
     from tqdm import tqdm
-    
-    gpt = GPT(Tensor(params['wte'],requires_grad=True),Tensor(params['wpe'],requires_grad=True),n_blocks=len(params['blocks']),n_head=n_head)
+    wte = Tensor(params['wte'],requires_grad=True)
+    wpe = Tensor(params['wpe'],requires_grad=True)
+    gpt = GPT(n_blocks=len(params['blocks']),n_head=n_head)
     load_params(gpt,params)
     for _ in tqdm(range(n_tokens_gen),'generating'):
-        logits = gpt(inputs)
+        emb = wte[inputs] + wpe[range(len(inputs))]
+        out = gpt(emb)
+        logits = out @ wte.T
         next_id = argmax(logits[-1]).sum()
         inputs = inputs.append(next_id)
     return inputs[len(inputs)-n_tokens_gen:]
