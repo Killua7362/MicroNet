@@ -1,6 +1,6 @@
 import unittest
 import torch
-from MicroNet.micro.tensor import Tensor
+from micro.tensor import Tensor
 import numpy as np
 
 class TestTensorMatMul(unittest.TestCase):

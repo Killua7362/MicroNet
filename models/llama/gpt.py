@@ -13,6 +13,7 @@ from micro.model import Model
 from encoder import get_encoder
 from utils import get_param_dict
 from micro.tensor import Tensor,split,hstack,tri,sqrt,argmax
+from micro.losses import CategoricalCrossEntropy
 
 class FeedForward:
     def __init__(self):
@@ -78,25 +79,33 @@ class GPT(Model):
         self.layer_norm = LayerNorm()
         super().__init__()
     
-    def forward(self,inputs):
+    def forward(self,inputs,targets=None):
         inputs = self.wte(inputs) + self.wpe(range(len(inputs)))
         for block in self.transformer_blocks:
             inputs = block(inputs)
         inputs = self.layer_norm(inputs)
-        return inputs @ self.wte.w.T
+        inputs = inputs @ self.wte.w.T
+        if target is None:
+            loss = None
+        else:
+            print(inputs.shape)
+            loss = None
+        return inputs, loss
     
-    def __call__(self,inputs):
-        return self.forward(inputs)
+    def __call__(self,inputs,targets):
+        return self.forward(inputs,targets)
     
-def regress(model,inputs,n_tokens_gen):
+def regress(model,inputs,targets,n_tokens_gen):
     from tqdm import tqdm
     for _ in tqdm(range(n_tokens_gen),'generating'):
-        logits = model(inputs)
+        logits,loss = model(inputs,targets)
         next_id = argmax(logits[-1]).sum()
         inputs = inputs.append(next_id)
     return inputs[len(inputs)-n_tokens_gen:]
 
+loss_fn = CategoricalCrossEntropy()
 text = "Quantum physics is"
+target = "Quantum physics is study of quantum particles"
 model_name = '1558M' 
 models_dir = 'Weights'
 path = os.path.join(models_dir,model_name)
@@ -105,11 +114,14 @@ hparams = json.load(open(os.path.join(path,'hparams.json')))
 params = get_param_dict(check_point,hparams)
 encoder = get_encoder(model_name,models_dir)
 
-ids = encoder.encode(text)
-ids = Tensor(ids,requires_grad = True)
+inputs = encoder.encode(text)
+targets = encoder.encode(target)
+inputs = Tensor(inputs,requires_grad = True)
+targets = Tensor(targets,requires_grad = True)
 gpt = GPT(hparams)
 load_params(gpt,params)
-out = regress(gpt,ids,40)
+# print(len(ids))
+out = regress(gpt,inputs,targets,4)
 out = out.data
 print(encoder.decode(out))
 # 24915   388 11887   318

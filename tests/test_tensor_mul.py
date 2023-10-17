@@ -1,5 +1,5 @@
 import unittest
-from MicroNet.micro.tensor import Tensor
+from micro.tensor import Tensor
 
 class TestTensorMul(unittest.TestCase):
     def test_simple_mul(self):
