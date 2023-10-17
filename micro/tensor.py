@@ -293,3 +293,25 @@ def hstack(arrays:List[Tensor]) -> Tensor:
         hooks.append(Hooks(arrays[-1],backward))
     return Tensor(data,requires_grad=requires_grad,nodes=hooks)
 
+
+def tri(shape,dtype=np.float64,requires_grad=False):
+    data = np.tri(shape,dtype=dtype)
+    return Tensor(data,requires_grad=requires_grad)
+
+def sqrt(t:Tensor) -> 'Tensor':
+    t = to_tensor(t)
+    data = np.sqrt(t.data)
+    hooks = []
+    
+    if t.requires_grad:
+        hooks.append(Hooks(t,lambda gradient: -1/(2*np.sqrt(t.data)) * gradient))
+    return Tensor(data,requires_grad=t.requires_grad,nodes=hooks)
+
+def argmax(t:Tensor,axis=None)->'Tensor':
+    t = to_tensor(t)
+    data = t.data
+    if axis is None:
+        data = np.unravel_index(np.argmax(data),shape=t.shape)
+    else:
+        data = np.argmax(data,axis=axis)
+    return Tensor(data)
