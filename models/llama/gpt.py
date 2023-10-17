@@ -88,10 +88,9 @@ def regress(inputs,n_tokens_gen,n_head,params):
     gpt = GPT(Tensor(params['wte'],requires_grad=True),Tensor(params['wpe'],requires_grad=True),n_blocks=len(params['blocks']),n_head=n_head)
     load_params(gpt,params)
     for _ in tqdm(range(n_tokens_gen),'generating'):
-        logits = gpt(Tensor(inputs,requires_grad = True))
-        next_id = argmax(logits[-1])
-        next_id = next_id.data[0]
-        inputs.append(int(next_id))
+        logits = gpt(inputs)
+        next_id = argmax(logits[-1]).sum()
+        inputs = inputs.append(next_id)
     return inputs[len(inputs)-n_tokens_gen:]
 
 text = "Quantum physics is"
@@ -104,5 +103,8 @@ params = get_param_dict(check_point,hparams)
 encoder = get_encoder(model_name,models_dir)
 
 ids = encoder.encode(text)
-out = regress(ids,10,hparams['n_head'],params)
+ids = Tensor(ids,requires_grad = True)
+out = regress(ids,4,hparams['n_head'],params)
+out = out.data
 print(encoder.decode(out))
+# 24915   388 11887   318

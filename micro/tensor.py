@@ -102,6 +102,26 @@ class Tensor:
     def __len__(self) -> 'int':
         return len(self.data)
     
+    def append(self,value) -> 'Tensor':
+        value = to_tensor(value)
+        if self.data.size == 0:
+            data = [value.data]
+        elif value.data.size == 0:
+            data = [self.data]
+        else:
+            data = self.data.tolist()
+            data.append(value.data[()])
+        hooks = []
+        if self.requires_grad:
+            def backward(gradient):
+                return gradient[:-1]
+            hooks.append(Hooks(self,backward))
+        if value.requires_grad:
+            def backward(gradient):
+                return gradient[-1]
+            hooks.append(Hooks(self,backward))
+        return Tensor(data,requires_grad=self.requires_grad or value.requires_grad,nodes=hooks)
+    
     @property
     def T(self,indices=None) -> 'Tensor':
         return _transpose(self,indices=indices)
@@ -314,4 +334,4 @@ def argmax(t:Tensor,axis=None)->'Tensor':
         data = np.unravel_index(np.argmax(data),shape=t.shape)
     else:
         data = np.argmax(data,axis=axis)
-    return Tensor(data)
+    return Tensor(data,requires_grad=t.requires_grad)
