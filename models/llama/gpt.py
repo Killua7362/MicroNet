@@ -7,7 +7,7 @@ import json
 sys.path.insert(0,os.path.abspath(""))
 
 from micro.activations import Gelu,SoftMax
-from micro.layers import Dense,LayerNorm
+from micro.layers import Dense,LayerNorm,Embeddings
 from micro.utils import load_params
 from micro.model import Model
 from encoder import get_encoder
@@ -63,31 +63,35 @@ class TransformerBlock:
 
 
 class GPT(Model):
-    def __init__(self,n_blocks=4,n_head=4):
+    def __init__(self,hparams):
+        #pos emb and time emb
+        self.n_ctx = hparams['n_ctx']
+        self.n_embd = hparams['n_embd']
+        self.n_vocab = hparams['n_vocab']
+        self.n_blocks = hparams['n_layer']
+        self.n_head = hparams['n_head']
+        self.wpe= Embeddings(self.n_ctx,self.n_embd)
+        self.wte= Embeddings(self.n_vocab,self.n_embd)
         self.transformer_blocks = []
-        for _ in range(n_blocks):
-            self.transformer_blocks.append(TransformerBlock(n_heads=n_head))
+        for _ in range(self.n_blocks):
+            self.transformer_blocks.append(TransformerBlock(n_heads=self.n_head))
         self.layer_norm = LayerNorm()
         super().__init__()
     
     def forward(self,inputs):
+        inputs = self.wte(inputs) + self.wpe(range(len(inputs)))
         for block in self.transformer_blocks:
             inputs = block(inputs)
-        return self.layer_norm(inputs)
+        inputs = self.layer_norm(inputs)
+        return inputs @ self.wte.w.T
     
     def __call__(self,inputs):
         return self.forward(inputs)
     
-def regress(inputs,n_tokens_gen,n_head,params):
+def regress(model,inputs,n_tokens_gen):
     from tqdm import tqdm
-    wte = Tensor(params['wte'],requires_grad=True)
-    wpe = Tensor(params['wpe'],requires_grad=True)
-    gpt = GPT(n_blocks=len(params['blocks']),n_head=n_head)
-    load_params(gpt,params)
     for _ in tqdm(range(n_tokens_gen),'generating'):
-        emb = wte[inputs] + wpe[range(len(inputs))]
-        out = gpt(emb)
-        logits = out @ wte.T
+        logits = model(inputs)
         next_id = argmax(logits[-1]).sum()
         inputs = inputs.append(next_id)
     return inputs[len(inputs)-n_tokens_gen:]
@@ -103,7 +107,9 @@ encoder = get_encoder(model_name,models_dir)
 
 ids = encoder.encode(text)
 ids = Tensor(ids,requires_grad = True)
-out = regress(ids,4,hparams['n_head'],params)
+gpt = GPT(hparams)
+load_params(gpt,params)
+out = regress(gpt,ids,40)
 out = out.data
 print(encoder.decode(out))
 # 24915   388 11887   318

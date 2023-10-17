@@ -1,3 +1,4 @@
+import sys
 #this will get leaf params from the dictionary
 #currently tested with llama that is it
 def get_flattended_weights(d):
@@ -35,5 +36,10 @@ def load_params(model,params):
     if model.instances == []:
         raise AttributeError(f'BaseLayer instance is empty. do not call this function without initializing the model')
     params = get_flattended_weights(params)    
+    ## very expensive operation
+    params.insert(0,params.pop())
+    params.insert(0,params.pop())
+    params[0]['w'] = params[0].pop('wpe')
+    params[1]['w'] = params[1].pop('wte')
     for i,val in enumerate(model.instances):
         val.trainable_params = update_dict(val.trainable_params,params[i])

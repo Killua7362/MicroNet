@@ -42,7 +42,36 @@ class BaseLayer:
     def zero_grad(self):
         for parameter in self.parameters():
             parameter.zero_grad()
+
+class Embeddings(BaseLayer):
+    def __init__(self,n_inputs=0,n_neurons=0):
+        self.n_neurons =n_neurons
+        self.n_inputs = n_inputs
+        self.trainable_params = {'w':None}
+        super().__init__()    
+        
+    def build(self,inputs):
+        if self.n_inputs == 0:
+            self.n_inputs = inputs.shape[-1]
             
+        if self.n_neurons == 0:
+            self.n_neurons = self.n_inputs
+                
+        if self.trainable_params['w'] is None:
+            self.trainable_params['w'] = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
+        self.w = self.trainable_params['w']
+           
+    def forward(self,inputs):
+        super().forward(inputs)
+        inputs = self.inputs
+        self.output = self.w[inputs]
+        
+    def backward(self,dvalues):
+        self.dw = np.zeros_like(self.w)
+        self.dw[self.inputs] = dvalues
+        self.dinputs = np.dot(dvalues , self.w.T)
+        return self.dinputs
+
 class Dense(BaseLayer):
     def __init__(self,n_inputs=0,n_neurons=0):
         self.n_neurons =n_neurons
