@@ -37,14 +37,13 @@ class Gelu(BaseLayer):
 
     def predictions(self,outputs):
         return outputs
-
 class SoftMax(BaseLayer):
     def __init__(self):
-        super().__init__()
-
+        super().__init__()    
+        
     def build(self,inputs):
         pass
-    
+           
     def forward(self,inputs):
         super().forward(inputs)
         inputs = self.inputs
@@ -58,6 +57,7 @@ class SoftMax(BaseLayer):
             single_output = single_output.reshape(-1,1)
             jacobian_matrix = np.diagflat(single_output) - np.dot(single_output,single_output.T)
             self.dinputs[index] = np.dot(jacobian_matrix,single_dvalues)
-            
+        return self.dinputs
+    
     def predictions(self,outputs):
         return np.argmax(outputs,axis=1)

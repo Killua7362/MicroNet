@@ -18,8 +18,8 @@ class BaseLayer:
         hooks = []
         self.forward(inputs)
         data = self.output
-        if not isinstance(inputs,Tensor):
-            return data
+        # if not isinstance(inputs,Tensor):
+        #     return data
         
         if inputs.requires_grad:
             hooks.append(Hooks(inputs,self.backward))
@@ -31,18 +31,7 @@ class BaseLayer:
         else:
             self.inputs = inputs
         self.build(self.inputs)
-    
-    def parameters(self) -> Iterator[Parameters]:
-        for name,value in inspect.getmembers(self):
-            if isinstance(value,Parameters):
-                yield value
-            elif isinstance(value,BaseLayer):
-                yield from value.parameters()
-
-    def zero_grad(self):
-        for parameter in self.parameters():
-            parameter.zero_grad()
-
+        
 class Embeddings(BaseLayer):
     def __init__(self,n_inputs=0,n_neurons=0):
         self.n_neurons =n_neurons

@@ -13,6 +13,7 @@ class Tensor:
         self.shape = self._data.shape
         self.grad:Optional['Tensor'] = None
         self.dtype = self._data.dtype
+        self.graph = None
         if self.requires_grad:
             self.zero_grad()
     
@@ -32,21 +33,38 @@ class Tensor:
     def zero_grad(self):
         self.grad = Tensor(np.zeros_like(self.data,dtype=np.float64))
     
+    #for debugging
+    def build_graph(self):
+        topo = []
+        visited = set()
+        def _build_graph(root):
+            if root not in visited:
+                visited.add(root)
+                for child in root.tensor.nodes:
+                    _build_graph(child)
+                topo.append(root)
+        _build_graph(Hooks(self,lambda: None))
+        self.graph = topo
+        del self.graph[-1]
+    
     def backward(self,grad:'Tensor'=None):
         if not self.requires_grad:
            raise AssertionError('non-requires-grad') 
        
         if grad is None:
-            if self.shape == ():
+            if self.shape == () or self.data == []:
                 grad = Tensor(1.0)
             else:
                 raise RuntimeError('specify grad for non-0-tensor')
-            
+        
+        self.build_graph()
         self.grad.data = self.grad.data + grad.data
          
-        for node in self.nodes:
-            back_grad = node.grad_fn(grad.data)      
-            node.tensor.backward(Tensor(back_grad))
+        nodes = self.graph
+        if nodes is not None:
+            for node in reversed(self.graph):
+                node.tensor.grad.data = node.tensor.grad.data + grad.data
+                grad.data = node.grad_fn(grad.data)      
     
     def sum(self) -> 'Tensor':
         return _sum(self)
@@ -101,26 +119,13 @@ class Tensor:
     
     def __len__(self) -> 'int':
         return len(self.data)
+
+    def __ge__(self,other):
+        return self.data >= other.data
+
+    def register_hook(self,hook):
+        self.nodes.append(hook)
     
-    def append(self,value) -> 'Tensor':
-        value = to_tensor(value)
-        if self.data.size == 0:
-            data = [value.data]
-        elif value.data.size == 0:
-            data = [self.data]
-        else:
-            data = self.data.tolist()
-            data.append(value.data[()])
-        hooks = []
-        if self.requires_grad:
-            def backward(gradient):
-                return gradient[:-1]
-            hooks.append(Hooks(self,backward))
-        if value.requires_grad:
-            def backward(gradient):
-                return gradient[-1]
-            hooks.append(Hooks(self,backward))
-        return Tensor(data,requires_grad=self.requires_grad or value.requires_grad,nodes=hooks)
     
     @property
     def T(self,indices=None) -> 'Tensor':
@@ -279,41 +284,14 @@ def _slice(t:Tensor,idxs) -> Tensor:
     if t.requires_grad:
         def backward(gradient):
             grad = np.zeros_like(data)
-            grad[idxs] = gradient
+            if gradient.shape != grad.shape:
+                grad[idxs] = gradient
+            else:
+                grad = gradient
             return grad
         hooks.append(Hooks(t,backward))
     return Tensor(data,nodes=hooks,requires_grad=t.requires_grad)
         
-
-def split(t:Tensor,parts,axis=0):
-    a = t.shape[axis]
-    a = a / parts
-    if (a % 1 != 0.0):
-        raise RuntimeError('Tensor is not equally splittable')
-    arr = []
-    for i in range(parts):
-        arr.append(t[ : ,int(a*i):int(a*(i+1))])
-    return arr
-
-def hstack(arrays:List[Tensor]) -> Tensor:
-    requires_grad = False
-    hooks = []
-    data = arrays[0].data
-    for t in range(1,len(arrays)):
-        requires_grad = arrays[t-1].requires_grad or requires_grad
-        data = np.hstack([data,arrays[t].data])
-        if arrays[t-1].requires_grad:
-            def backward(gradient):
-                return gradient[t-1:t-1+arrays[t-1].shape[0]]
-            hooks.append(Hooks(arrays[t-1],backward))
-    requires_grad = arrays[-1].requires_grad or requires_grad
-    if arrays[-1].requires_grad:
-        def backward(gradient):
-            return gradient[len(arrays)-1:len(arrays)-1+arrays[-1].shape[0]]
-        hooks.append(Hooks(arrays[-1],backward))
-    return Tensor(data,requires_grad=requires_grad,nodes=hooks)
-
-
 def tri(shape,dtype=np.float64,requires_grad=False):
     data = np.tri(shape,dtype=dtype)
     return Tensor(data,requires_grad=requires_grad)
@@ -335,3 +313,95 @@ def argmax(t:Tensor,axis=None)->'Tensor':
     else:
         data = np.argmax(data,axis=axis)
     return Tensor(data,requires_grad=t.requires_grad)
+
+def concatenate(tensor,axis=0) -> 'Tensor':
+    requires_grad = False
+    hooks = []
+    data = np.array([])
+    
+    for idx,t in enumerate(tensor):
+        t = to_tensor(t)
+        requires_grad = t.requires_grad or requires_grad
+        if data.size == 0:
+            data = t.data
+        else:
+            data = np.concatenate((data,t.data),axis=axis)
+        if t.requires_grad:
+            def backward(gradient):
+                if axis == 0:
+                    return gradient[idx:idx+t.shape[0],:]
+                elif axis == 1:
+                    return gradient[:,idx:idx+t.shape[1]]
+            hooks.append(Hooks(t,backward))
+    return Tensor(data,requires_grad=requires_grad,nodes=hooks)
+
+
+def hstack(arrays:List[Tensor]) -> Tensor:
+    requires_grad = any(t.requires_grad for t in arrays)
+    data_list = [t.data for t in arrays]
+    stacked = np.hstack(data_list)
+    hooks = []
+    if requires_grad:
+        current_idx = 0
+        for t in arrays:
+            if t.requires_grad:
+                num_col = t.shape[1]
+                def backward(gradient):
+                    return gradient[:,current_idx:current_idx+num_col]
+                hooks.append(Hooks(t,backward))
+            current_idx += num_col
+    return Tensor(stacked,requires_grad=requires_grad,nodes=hooks)
+
+def append(t,value):
+    t = to_tensor(t)
+    value = to_tensor(value)
+    requires_grad = t.requires_grad or value.requires_grad
+    if t.data.size == 0:
+        data = [value.data]
+    elif value.data.size == 0:
+        data = [t.data]
+    else:
+        data = t.data.tolist()
+        data.append(value.data)
+    hooks = []
+    if t.requires_grad:
+        def backward(grad):
+            return grad[:-1]
+        hooks.append(Hooks(t, backward))
+
+    if value.requires_grad:
+        def backward(grad):
+            return grad[-1]
+        hooks.append(Hooks(value, backward))
+    return Tensor(data, requires_grad,nodes=hooks)
+
+
+def split(input_tensor, num_splits, axis=-1):
+    if axis<0:
+        axis = len( input_tensor.shape ) + axis
+    input_tensor = to_tensor(input_tensor)
+    input_shape = input_tensor.shape
+    assert input_shape[axis] % num_splits == 0, "Invalid split size"
+
+    split_size = input_shape[axis] // num_splits
+    split_tensors = []
+
+    for i in range(num_splits):
+        start = i * split_size
+        end = (i + 1) * split_size
+
+        def backward(gradient):
+            # Create a tensor with zeros of the same shape as the input
+            grad = np.zeros_like(input_tensor.data)
+
+            # Assign the received gradient to the appropriate split range
+            if axis == 0:
+                grad[start:end, :] = gradient
+            elif axis == 1:
+                grad[:, start:end] = gradient
+
+            return grad
+
+        split_tensors.append(Tensor(input_tensor.data[:, start:end], requires_grad=input_tensor.requires_grad, nodes=[Hooks(input_tensor, backward)]))
+
+    return split_tensors

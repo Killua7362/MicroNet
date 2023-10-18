@@ -31,15 +31,16 @@ def update_dict(a,b):
             raise KeyError(f'The key {key} does not exist')
     return a 
 
-def load_params(model,params):
+def load_params(model,params,emb=True):
     from micro.layers import BaseLayer
     if model.instances == []:
         raise AttributeError(f'BaseLayer instance is empty. do not call this function without initializing the model')
     params = get_flattended_weights(params)    
-    ## very expensive operation
-    params.insert(0,params.pop())
-    params.insert(0,params.pop())
-    params[0]['w'] = params[0].pop('wpe')
-    params[1]['w'] = params[1].pop('wte')
-    for i,val in enumerate(model.instances):
-        val.trainable_params = update_dict(val.trainable_params,params[i])
+    temp = 0
+    if emb:
+        params[-2]['w'] = params[-2].pop('wpe')
+        params[-1]['w'] = params[-1].pop('wte')
+    else:
+        temp = -2
+    for i,val in enumerate(params[:temp]):
+        model.instances[i].trainable_params = update_dict(model.instances[i].trainable_params,val)
