@@ -323,7 +323,7 @@ def concatenate(tensor,axis=0) -> 'Tensor':
         if data.size == 0:
             data = t.data
         else:
-            data = np.concatenate((t.data,data),axis=axis)
+            data = np.concatenate((data,t.data),axis=axis)
         if t.requires_grad:
             def backward(gradient):
                 if axis == 0:
@@ -379,10 +379,10 @@ def split(input_tensor, num_splits, axis=-1):
         axis = len(input_tensor.shape) + axis
         
     input_tensor = to_tensor(input_tensor)
-    input_shape = input_tensor.shape
-    assert input_shape[axis] % num_splits == 0, "Invalid split size"
+    input_shape = input_tensor.shape[axis]
+    assert input_shape % num_splits == 0, "Invalid split size"
 
-    split_size = input_shape[axis] // num_splits
+    split_size = input_shape // num_splits
     split_tensors = []
 
     for i in range(num_splits):
@@ -390,10 +390,7 @@ def split(input_tensor, num_splits, axis=-1):
         end = (i + 1) * split_size
 
         def backward(gradient):
-            # Create a tensor with zeros of the same shape as the input
             grad = np.zeros_like(input_tensor.data)
-
-            # Assign the received gradient to the appropriate split range
             if axis == 0:
                 grad[start:end, :] = gradient
             elif axis == 1:

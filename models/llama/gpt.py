@@ -59,16 +59,9 @@ class MultiHeadAttention:
         y = self.dense_2(x)
         return y
     
-m = MultiHeadAttention()
-inputs = Tensor(np.random.randn(4,4800),requires_grad=True)
-out = m(inputs)
-out.backward(Tensor(np.ones_like(out.data)))
-print(inputs.grad)
-# loss.build_graph()
 
-sys.exit(0)
 class TransformerBlock:
-    def __init__(self,n_heads=4):
+    def __init__(self,n_heads=25):
         self.mha = MultiHeadAttention(n_heads=n_heads)
         self.layer_norm_1 = LayerNorm()
         self.layer_norm_2 = LayerNorm()
@@ -79,8 +72,6 @@ class TransformerBlock:
         inputs = inputs + self.ffn(self.layer_norm_2(inputs))
         return inputs
 
-
-
 class GPT(Model):
     def __init__(self,hparams):
         #pos emb and time emb
@@ -89,12 +80,14 @@ class GPT(Model):
         self.n_vocab = hparams['n_vocab']
         self.n_blocks = hparams['n_layer']
         self.n_head = hparams['n_head']
+        
+        self.wpe= Embeddings(self.n_ctx,self.n_embd)
+        self.wte= Embeddings(self.n_vocab,self.n_embd)
         self.transformer_blocks = []
         for _ in range(self.n_blocks):
             self.transformer_blocks.append(TransformerBlock(n_heads=self.n_head))
         self.layer_norm = LayerNorm()
-        self.wpe= Embeddings(self.n_ctx,self.n_embd)
-        self.wte= Embeddings(self.n_vocab,self.n_embd)
+
         super().__init__()
     
     def forward(self,inputs,targets=None):
@@ -103,7 +96,6 @@ class GPT(Model):
             inputs = block(inputs)
         logits= self.layer_norm(inputs)
         logits = logits @ self.wte.w.T
-        # print(F.cross_entropy(torch.tensor( logits.data ),torch.tensor( targets.data )))
         return logits, None
     
     def __call__(self,inputs,targets):
@@ -114,11 +106,11 @@ def regress(model,inputs,targets,n_tokens_gen):
     for _ in tqdm(range(n_tokens_gen),'generating'):
         logits,loss = model(inputs,targets)
         next_id = argmax(logits[-1]).sum()
-        inputs = inputs.append(next_id)
+        inputs = append(inputs,next_id)
     return inputs[len(inputs)-n_tokens_gen:]
 
 loss_fn = CategoricalCrossEntropy()
-text = "context: Akshay has neck pain. Q: Who has neck pain?"
+text = "Quantum physics is"
 target = "The telephone was invented by"
 model_name = '1558M' 
 models_dir = 'Weights'
@@ -134,8 +126,7 @@ inputs = Tensor(inputs,requires_grad = True)
 targets = Tensor(targets,requires_grad = True)
 gpt = GPT(hparams)
 load_params(gpt,params)
-# print(len(ids))
-out = regress(gpt,inputs,targets,1)
+out = regress(gpt,inputs,targets,4)
 out = out.data
 print(encoder.decode(out))
 # 24915   388 11887   318

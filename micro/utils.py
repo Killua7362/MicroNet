@@ -36,11 +36,14 @@ def load_params(model,params,emb=True):
     if model.instances == []:
         raise AttributeError(f'BaseLayer instance is empty. do not call this function without initializing the model')
     params = get_flattended_weights(params)    
-    temp = 0
     if emb:
-        params[-2]['w'] = params[-2].pop('wpe')
-        params[-1]['w'] = params[-1].pop('wte')
+        params.insert(0,params.pop())
+        params.insert(0,params.pop())
+        params[0]['w'] = params[0].pop('wpe')
+        params[1]['w'] = params[1].pop('wte')
+        for i,val in enumerate(params):
+            model.instances[i].trainable_params = update_dict(model.instances[i].trainable_params,val)
     else:
-        temp = -2
-    for i,val in enumerate(params[:temp]):
-        model.instances[i].trainable_params = update_dict(model.instances[i].trainable_params,val)
+        for i,val in enumerate(params[:-2]):
+            model.instances[i].trainable_params = update_dict(model.instances[i].trainable_params,val)
+        
