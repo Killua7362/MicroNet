@@ -18,8 +18,8 @@ class BaseLayer:
         hooks = []
         self.forward(inputs)
         data = self.output
-        # if not isinstance(inputs,Tensor):
-        #     return data
+        if not isinstance(inputs,Tensor):
+            return data
         
         if inputs.requires_grad:
             hooks.append(Hooks(inputs,self.backward))

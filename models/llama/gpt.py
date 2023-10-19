@@ -14,27 +14,20 @@ from micro.utils import load_params
 from micro.model import Model
 from encoder import get_encoder
 from utils import get_param_dict
-from micro.tensor import Tensor,split,concatenate,tri,sqrt,argmax,hstack,append
+from micro.tensor import Tensor,split,concatenate,tri,sqrt,argmax,hstack,append,dummy_loss
 from micro.losses import CategoricalCrossEntropy
 
 class FeedForward:
     def __init__(self):
         self.gelu = Gelu()
         self.dense_1  = Dense() 
+        self.dense_2  = Dense() 
     
     def __call__(self,inputs):
         inputs = self.gelu(self.dense_1(inputs))
+        inputs = self.dense_2(inputs) 
         return inputs
 
-m = FeedForward()
-inputs = Tensor(np.random.randn(3,),requires_grad=True)
-out = m(inputs)
-out.backward(Tensor(np.ones_like(out)))
-print(inputs.grad)
-# out.build_graph()
-# print(out.graph)
-
-sys.exit(0)
 class Attention:
     def __init__(self):
         self.softmax = SoftMax()
@@ -66,6 +59,14 @@ class MultiHeadAttention:
         y = self.dense_2(x)
         return y
     
+m = MultiHeadAttention()
+inputs = Tensor(np.random.randn(4,4800),requires_grad=True)
+out = m(inputs)
+out.backward(Tensor(np.ones_like(out.data)))
+print(inputs.grad)
+# loss.build_graph()
+
+sys.exit(0)
 class TransformerBlock:
     def __init__(self,n_heads=4):
         self.mha = MultiHeadAttention(n_heads=n_heads)

@@ -48,6 +48,7 @@ class MultiHeadAttention:
         
         inputs = np.hstack(out_head)
         inputs = self.dense_2(inputs)
+        print(inputs.shape)
         return inputs
     
 class TransformerBlock:

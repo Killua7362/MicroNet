@@ -56,15 +56,13 @@ class Tensor:
                 grad = Tensor(1.0)
             else:
                 raise RuntimeError('specify grad for non-0-tensor')
+        self.grad.data = grad.data + self.grad.data
         
-        self.build_graph()
-        self.grad.data = self.grad.data + grad.data
-         
-        nodes = self.graph
-        if nodes is not None:
-            for node in reversed(self.graph):
-                node.tensor.grad.data = node.tensor.grad.data + grad.data
-                grad.data = node.grad_fn(grad.data)      
+        hooks = self.nodes
+        if hooks is not None:
+            for node in self.nodes:
+                backward_grad = node.grad_fn(grad.data)
+                node.tensor.backward(Tensor(backward_grad))
     
     def sum(self) -> 'Tensor':
         return _sum(self)
@@ -270,7 +268,7 @@ def dummy_loss(x:Tensor) -> 'Tensor':
     hooks = []
     if x.requires_grad:
         def backward(gradients):
-            num = gradients.shape[0]
+            num = gradients[()]
             grad = 1.0/ num
             return grad * gradients
         hooks.append(Hooks(x,backward))
@@ -325,7 +323,7 @@ def concatenate(tensor,axis=0) -> 'Tensor':
         if data.size == 0:
             data = t.data
         else:
-            data = np.concatenate((data,t.data),axis=axis)
+            data = np.concatenate((t.data,data),axis=axis)
         if t.requires_grad:
             def backward(gradient):
                 if axis == 0:
@@ -378,7 +376,8 @@ def append(t,value):
 
 def split(input_tensor, num_splits, axis=-1):
     if axis<0:
-        axis = len( input_tensor.shape ) + axis
+        axis = len(input_tensor.shape) + axis
+        
     input_tensor = to_tensor(input_tensor)
     input_shape = input_tensor.shape
     assert input_shape[axis] % num_splits == 0, "Invalid split size"
