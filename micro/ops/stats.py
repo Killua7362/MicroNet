@@ -6,7 +6,7 @@ def mean(a,axis=None,dtype=None,out=None,keepdims=False):
     if 'numpy' in str(type(a)):
         return np.mean(a,axis,dtype,out,keepdims)
     elif 'cupy' in str(type(a)):
-        return np.mean(a,axis,dtype,out,keepdims)
+        return cp.mean(a,axis,dtype,out,keepdims)
     
 #np.sum
 def sum(a,axis=None,dtype=None,out=None,keepdims=False):

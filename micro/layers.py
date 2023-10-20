@@ -2,7 +2,7 @@ import numpy as np
 from micro.tensor import Tensor,Hooks
 from typing import Iterator
 import inspect
-from micro.autograd.parameters import Parameters
+import cupy as cp
 
 class BaseLayer:
     instances = []
@@ -58,7 +58,7 @@ class Embeddings(BaseLayer):
     def backward(self,dvalues):
         self.dw = np.zeros_like(self.w)
         self.dw[self.inputs] = dvalues
-        self.dinputs = np.dot(dvalues , self.w.T)
+        self.dinputs = cp.dot(dvalues , self.w.T)
         return self.dinputs
 
 class Dense(BaseLayer):
@@ -85,12 +85,12 @@ class Dense(BaseLayer):
     def forward(self,inputs):
         super().forward(inputs)
         inputs = self.inputs
-        self.output = np.dot(inputs,self.w) + self.b
+        self.output = cp.dot(inputs,self.w) + self.b
         
     def backward(self,dvalues):
-        self.dw = np.dot(self.inputs.T,dvalues)
-        self.db = np.sum(dvalues,axis = 0,keepdims=True)
-        self.dinputs = np.dot(dvalues,self.w.T)
+        self.dw = cp.dot(self.inputs.T,dvalues)
+        self.db = cp.sum(dvalues,axis = 0,keepdims=True)
+        self.dinputs = cp.dot(dvalues,self.w.T)
         return self.dinputs
 
 class Layer_input:
@@ -115,8 +115,8 @@ class LayerNorm(BaseLayer):
     def forward(self,inputs):
         super().forward(inputs)
         inputs = self.inputs
-        mean = np.mean(inputs,axis=-1,keepdims=True)
-        variance = np.var(inputs,axis=-1,keepdims=True)
+        mean = cp.mean(inputs,axis=-1,keepdims=True)
+        variance = cp.var(inputs,axis=-1,keepdims=True)
         inputs_normalized =(inputs-mean) /np.sqrt(variance+self.epsilon)
         self.output = self.g * inputs_normalized + self.b
         self.cache = (inputs_normalized, mean, variance)
@@ -124,10 +124,11 @@ class LayerNorm(BaseLayer):
     def backward(self,dvalues):
         inputs_normalized, mean, variance = self.cache
         N,D = self.inputs.shape
-        self.db = np.sum(dvalues, axis=0)
-        self.dg = np.sum(dvalues* inputs_normalized, axis=0)
+        self.db = cp.sum(dvalues, axis=0)
+        self.dg = cp.sum(dvalues* inputs_normalized, axis=0)
         dx_normalized = dvalues * self.g
-        dvar = np.sum(dx_normalized * (self.inputs - mean) * -0.5 * (variance+ self.epsilon)**(-1.5), axis=0)
-        dmean = np.sum(dx_normalized * -1.0 / np.sqrt(variance+ self.epsilon), axis=0)
+        dvar = cp.sum(dx_normalized * (self.inputs - mean) * -0.5 * (variance+ self.epsilon)**(-1.5), axis=0)
+        dmean = cp.sum(dx_normalized * -1.0 / np.sqrt(variance+ self.epsilon), axis=0)
         self.dinputs = dx_normalized / np.sqrt(variance+ self.epsilon) + dvar * 2.0 * (self.inputs - mean) / D + dmean / D
+        return self.dinputs
  

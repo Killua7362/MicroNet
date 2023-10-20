@@ -1,5 +1,6 @@
 from typing import List, NamedTuple,Callable,Optional,Union
 import numpy as np
+import cupy as cp
 
 class Hooks(NamedTuple):
     tensor:'Tensor'
@@ -61,6 +62,7 @@ class Tensor:
         hooks = self.nodes
         if hooks is not None:
             for node in self.nodes:
+                print(node)
                 backward_grad = node.grad_fn(grad.data)
                 node.tensor.backward(Tensor(backward_grad))
     
@@ -281,7 +283,7 @@ def _slice(t:Tensor,idxs) -> Tensor:
     hooks = []
     if t.requires_grad:
         def backward(gradient):
-            grad = np.zeros_like(data)
+            grad = np.zeros_like(t.data)
             if gradient.shape != grad.shape:
                 grad[idxs] = gradient
             else:
@@ -337,7 +339,7 @@ def concatenate(tensor,axis=0) -> 'Tensor':
 def hstack(arrays:List[Tensor]) -> Tensor:
     requires_grad = any(t.requires_grad for t in arrays)
     data_list = [t.data for t in arrays]
-    stacked = np.hstack(data_list)
+    stacked = cp.hstack(data_list)
     hooks = []
     if requires_grad:
         current_idx = 0

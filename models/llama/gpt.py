@@ -5,16 +5,16 @@ import tensorflow as tf
 import json
 from torch.nn import functional as F
 import torch
-
+import time
 sys.path.insert(0,os.path.abspath(""))
 
 from micro.activations import Gelu,SoftMax
-from micro.layers import Dense,LayerNorm,Embeddings
+from micro.layers import Dense,LayerNorm
 from micro.utils import load_params
 from micro.model import Model
 from encoder import get_encoder
 from utils import get_param_dict
-from micro.tensor import Tensor,split,concatenate,tri,sqrt,argmax,hstack,append,dummy_loss
+from micro.tensor import Tensor,split,concatenate,tri,sqrt,argmax,append,dummy_loss
 from micro.losses import CategoricalCrossEntropy
 
 class FeedForward:
@@ -80,9 +80,6 @@ class GPT(Model):
         self.n_vocab = hparams['n_vocab']
         self.n_blocks = hparams['n_layer']
         self.n_head = hparams['n_head']
-        
-        self.wpe= Embeddings(self.n_ctx,self.n_embd)
-        self.wte= Embeddings(self.n_vocab,self.n_embd)
         self.transformer_blocks = []
         for _ in range(self.n_blocks):
             self.transformer_blocks.append(TransformerBlock(n_heads=self.n_head))
@@ -90,23 +87,24 @@ class GPT(Model):
 
         super().__init__()
     
-    def forward(self,inputs,targets=None):
-        inputs = self.wte(inputs) + self.wpe(range(len(inputs)))
+    def forward(self,inputs):
         for block in self.transformer_blocks:
             inputs = block(inputs)
-        logits= self.layer_norm(inputs)
-        logits = logits @ self.wte.w.T
-        return logits, None
+        logits = self.layer_norm(inputs)
+        return logits
     
-    def __call__(self,inputs,targets):
-        return self.forward(inputs,targets)
+    def __call__(self,inputs):
+        return self.forward(inputs)
     
-def regress(model,inputs,targets,n_tokens_gen):
+def regress(model,inputs,targets,n_tokens_gen,wte,wpe):
     from tqdm import tqdm
     for _ in tqdm(range(n_tokens_gen),'generating'):
-        logits,loss = model(inputs,targets)
+        embds = wte[inputs] + wpe[np.arange(len(inputs))]
+        logits = model(embds)
+        logits = logits @ wte.T
         next_id = argmax(logits[-1]).sum()
-        inputs = append(inputs,next_id)
+        next_id = next_id.data[()]
+        inputs.append(next_id)
     return inputs[len(inputs)-n_tokens_gen:]
 
 loss_fn = CategoricalCrossEntropy()
@@ -122,11 +120,16 @@ encoder = get_encoder(model_name,models_dir)
 
 inputs = encoder.encode(text)
 targets = encoder.encode(target)
-inputs = Tensor(inputs,requires_grad = True)
-targets = Tensor(targets,requires_grad = True)
+
+# inputs = Tensor(inputs,requires_grad = True)
+# targets = Tensor(targets,requires_grad = True)
+
 gpt = GPT(hparams)
-load_params(gpt,params)
-out = regress(gpt,inputs,targets,4)
-out = out.data
+
+wte = Tensor(params['wte'],requires_grad=True)
+wpe = Tensor(params['wpe'],requires_grad=True)
+
+load_params(gpt,params,emb=False)
+out = regress(gpt,inputs,targets,3,wte,wpe)
 print(encoder.decode(out))
 # 24915   388 11887   318

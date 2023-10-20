@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Accuracy:
     def calculate(self,pred_val,true_val):
         comparisons = self.compare(pred_val,true_val)

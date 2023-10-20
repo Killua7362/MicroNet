@@ -19,7 +19,7 @@ def zeros(shape,dtype=np.float64,device='cpu'):
 
 #np.tri
 def tri(N,M=None,k=0,dtype=cp.float64):
-     return cp.tri(N,M,k,dtype)
+     return np.tri(N,M,k,dtype)
  
 #np.array
 def array(a,dtype=None,copy=True,device='cpu'):
