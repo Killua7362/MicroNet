@@ -95,14 +95,17 @@ def regress(inputs,n_tokens_gen,n_head,params):
     return inputs[len(inputs)-n_tokens_gen:]
 
 text = "Quantum physics is"
-model_name = '1558M' 
+model_name = '124M' 
 models_dir = 'Weights'
 path = os.path.join(models_dir,model_name)
 check_point = tf.train.latest_checkpoint(path)
 hparams = json.load(open(os.path.join(path,'hparams.json')))
 params = get_param_dict(check_point,hparams)
 encoder = get_encoder(model_name,models_dir)
-
+import time
 ids = encoder.encode(text)
-out = regress(ids,4,hparams['n_head'],params)
+start_time = time.perf_counter()
+out = regress(ids,250,hparams['n_head'],params)
+end_time = time.perf_counter()
 print(encoder.decode(out))
+print(end_time-start_time)

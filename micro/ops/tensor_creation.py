@@ -19,7 +19,7 @@ def zeros(shape,dtype=np.float64,device='cpu'):
 
 #np.tri
 def tri(N,*args,dtype=np.float64,**kwargs):
-    if 'numpy' in str(type(dtype)):
+    if 'numpy' in str(dtype):
         return np.tri(N,*args,dtype=dtype,**kwargs)
     return cp.tri(N,*args,dtype=dtype,**kwargs)
  

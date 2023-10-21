@@ -3,7 +3,7 @@ import requests
 import sys
 
 models_dir = 'Weights'
-model_size = '1558M'
+model_size = '124M'
 path = os.path.join(models_dir,model_size)
 try:
     os.makedirs(path,exist_ok=False)

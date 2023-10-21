@@ -74,7 +74,6 @@ class Tensor:
         hooks = self.nodes
         if hooks is not None:
             for node in self.nodes:
-                print(node)
                 backward_grad = node.grad_fn(grad.data)
                 node.tensor.backward(Tensor(backward_grad))
     
@@ -354,17 +353,14 @@ def _slice(t:Tensor,idxs) -> Tensor:
         hooks.append(Hooks(t,backward))
     return Tensor(data,nodes=hooks,requires_grad=t.requires_grad)
         
-def tri(shape,dtype=np.float64,requires_grad=False):
+def tri(shape,dtype=cp.float32,requires_grad=False):
     data = micro.tri(shape,dtype=dtype)
     return Tensor(data,requires_grad=requires_grad)
 
-def sqrt(t:Tensor) -> 'Tensor':
-    
-    device = 'cpu'
+def sqrt(t:Tensor,device='cpu') -> 'Tensor':
     if isinstance(t,Tensor):
         device = t.device
     t = to_tensor(t,device=device)
-    
     data = micro.sqrt(t.data)
     hooks = []
     

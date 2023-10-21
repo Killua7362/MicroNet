@@ -9,11 +9,11 @@ def empty_like(a,dtype=None,order='K',shape=None):
         return cp.empty_like(a,dtype=dtype,order=order,shape=shape)
     
 #np.diagflat
-def diagflat(a,k):
+def diagflat(a,*args,**kwargs):
     if 'numpy' in str(type(a)):
-        return np.diagflat(a,k)
+        return np.diagflat(a,*args,**kwargs)
     if 'cupy' in str(type(a)):
-        return cp.diagflat(a,k)
+        return cp.diagflat(a,*args,**kwargs)
     
 #np.dot
 def dot(a,b,out=None):

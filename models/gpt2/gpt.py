@@ -7,6 +7,9 @@ from torch.nn import functional as F
 import cupy as cp
 sys.path.insert(0,os.path.abspath(""))
 
+mempool = cp.get_default_memory_pool()
+pinned_mempool = cp.get_default_pinned_memory_pool()
+
 from micro.activations import Gelu,SoftMax
 from micro.layers import Dense,LayerNorm
 from micro.utils import load_params
@@ -32,7 +35,7 @@ class Attention:
         self.softmax = SoftMax()
     
     def __call__(self,q,k,v,mask=None):
-        res = self.softmax(q @ k.T / sqrt(q.shape[-1])+mask) @ v
+        res = self.softmax(q @ k.T / sqrt(q.shape[-1],device=mask.device)+mask) @ v
         return res
     
 class MultiHeadAttention:
@@ -45,7 +48,7 @@ class MultiHeadAttention:
     def __call__(self,inputs):
         inputs = inputs
         x = self.dense_1(inputs)
-        mask = (1-tri(inputs.shape[0],dtype=cp.float32)) * -1e10
+        mask = (1-tri(inputs.shape[0],dtype=np.float32 if 'numpy' in str(type(x.data)) else None)) * -1e10
         qkv = split(x,3,axis=-1)
         q = split(qkv[0],self.n_heads,axis=-1)
         k = split(qkv[1],self.n_heads,axis=-1)
@@ -104,8 +107,18 @@ def regress(model,inputs,targets,n_tokens_gen,wte,wpe):
         next_id = argmax(logits[-1]).sum()
         next_id = next_id.data
         inputs.append(int(next_id))
+        
+        del embds
+        del logits
+        mempool.free_all_blocks()
+        pinned_mempool.free_all_blocks()
+        
     return inputs[len(inputs)-n_tokens_gen:]
 
+
+
+
+device = 'cuda'
 loss_fn = CategoricalCrossEntropy()
 text = "Quantum physics is"
 target = "The telephone was invented by"
@@ -114,7 +127,7 @@ models_dir = 'Weights'
 path = os.path.join(models_dir,model_name)
 check_point = tf.train.latest_checkpoint(path)
 hparams = json.load(open(os.path.join(path,'hparams.json')))
-params = get_param_dict(check_point,hparams,device='cuda')
+params = get_param_dict(check_point,hparams,device=device)
 encoder = get_encoder(model_name,models_dir)
 
 inputs = encoder.encode(text)
@@ -125,10 +138,14 @@ targets = encoder.encode(target)
 
 gpt = GPT(hparams)
 
-wte = Tensor(params['wte'],requires_grad=True,device='cuda')
-wpe = Tensor(params['wpe'],requires_grad=True,device='cuda')
+wte = Tensor(params['wte'],requires_grad=False,device=device)
+wpe = Tensor(params['wpe'],requires_grad=False,device=device)
 
+import time
 load_params(gpt,params,emb=False)
-out = regress(gpt,inputs,targets,10,wte,wpe)
+start_time = time.perf_counter()
+out = regress(gpt,inputs,targets,20,wte,wpe)
+end_time = time.perf_counter()
 print(encoder.decode(out))
+print(end_time-start_time)
 # 24915   388 11887   318
