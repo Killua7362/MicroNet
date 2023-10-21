@@ -18,8 +18,10 @@ def zeros(shape,dtype=np.float64,device='cpu'):
 #np.ndarray
 
 #np.tri
-def tri(N,M=None,k=0,dtype=cp.float64):
-     return np.tri(N,M,k,dtype)
+def tri(N,*args,dtype=np.float64,**kwargs):
+    if 'numpy' in str(type(dtype)):
+        return np.tri(N,*args,dtype=dtype,**kwargs)
+    return cp.tri(N,*args,dtype=dtype,**kwargs)
  
 #np.array
 def array(a,dtype=None,copy=True,device='cpu'):

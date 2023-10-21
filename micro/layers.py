@@ -3,6 +3,7 @@ from micro.tensor import Tensor,Hooks
 from typing import Iterator
 import inspect
 import cupy as cp
+import micro
 
 class BaseLayer:
     instances = []
@@ -47,7 +48,7 @@ class Embeddings(BaseLayer):
             self.n_neurons = self.n_inputs
                 
         if self.trainable_params['w'] is None:
-            self.trainable_params['w'] = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
+            self.trainable_params['w'] = 0.01 * micro.randn(self.n_inputs,self.n_neurons)
         self.w = self.trainable_params['w']
            
     def forward(self,inputs):
@@ -56,9 +57,9 @@ class Embeddings(BaseLayer):
         self.output = self.w[inputs]
         
     def backward(self,dvalues):
-        self.dw = np.zeros_like(self.w)
+        self.dw = micro.zeros_like(self.w)
         self.dw[self.inputs] = dvalues
-        self.dinputs = cp.dot(dvalues , self.w.T)
+        self.dinputs = micro.dot(dvalues , self.w.T)
         return self.dinputs
 
 class Dense(BaseLayer):
@@ -76,21 +77,21 @@ class Dense(BaseLayer):
             self.n_neurons = self.n_inputs
                 
         if self.trainable_params['w'] is None:
-            self.trainable_params['w'] = 0.01 * np.random.randn(self.n_inputs,self.n_neurons)
+            self.trainable_params['w'] = 0.01 * micro.randn(self.n_inputs,self.n_neurons)
         self.w = self.trainable_params['w']
         if self.trainable_params['b'] is None:
-            self.trainable_params['b'] = np.zeros(shape=(self.n_neurons))
+            self.trainable_params['b'] = micro.zeros(shape=(self.n_neurons))
         self.b = self.trainable_params['b']
            
     def forward(self,inputs):
         super().forward(inputs)
         inputs = self.inputs
-        self.output = cp.dot(inputs,self.w) + self.b
+        self.output = micro.dot(inputs,self.w) + self.b
         
     def backward(self,dvalues):
-        self.dw = cp.dot(self.inputs.T,dvalues)
-        self.db = cp.sum(dvalues,axis = 0,keepdims=True)
-        self.dinputs = cp.dot(dvalues,self.w.T)
+        self.dw = micro.dot(self.inputs.T,dvalues)
+        self.db = micro.sum(dvalues,axis = 0,keepdims=True)
+        self.dinputs = micro.dot(dvalues,self.w.T)
         return self.dinputs
 
 class Layer_input:
@@ -105,30 +106,30 @@ class LayerNorm(BaseLayer):
     
     def build(self,inputs):
         if self.trainable_params ['g'] is None:
-            self.trainable_params['g'] = np.ones(inputs.shape[-1])
+            self.trainable_params['g'] = micro.ones(inputs.shape[-1])
         self.g = self.trainable_params['g']
         
         if self.trainable_params['b'] is None:
-            self.trainable_params['b'] = np.zeros(inputs.shape[-1])
+            self.trainable_params['b'] = micro.zeros(inputs.shape[-1])
         self.b = self.trainable_params['b']
         
     def forward(self,inputs):
         super().forward(inputs)
         inputs = self.inputs
-        mean = cp.mean(inputs,axis=-1,keepdims=True)
-        variance = cp.var(inputs,axis=-1,keepdims=True)
-        inputs_normalized =(inputs-mean) /np.sqrt(variance+self.epsilon)
+        mean = micro.mean(inputs,axis=-1,keepdims=True)
+        variance = micro.var(inputs,axis=-1,keepdims=True)
+        inputs_normalized =(inputs-mean) /micro.sqrt(variance+self.epsilon)
         self.output = self.g * inputs_normalized + self.b
         self.cache = (inputs_normalized, mean, variance)
         
     def backward(self,dvalues):
         inputs_normalized, mean, variance = self.cache
         N,D = self.inputs.shape
-        self.db = cp.sum(dvalues, axis=0)
-        self.dg = cp.sum(dvalues* inputs_normalized, axis=0)
+        self.db = micro.sum(dvalues, axis=0)
+        self.dg = micro.sum(dvalues* inputs_normalized, axis=0)
         dx_normalized = dvalues * self.g
-        dvar = cp.sum(dx_normalized * (self.inputs - mean) * -0.5 * (variance+ self.epsilon)**(-1.5), axis=0)
-        dmean = cp.sum(dx_normalized * -1.0 / np.sqrt(variance+ self.epsilon), axis=0)
-        self.dinputs = dx_normalized / np.sqrt(variance+ self.epsilon) + dvar * 2.0 * (self.inputs - mean) / D + dmean / D
+        dvar = micro.sum(dx_normalized * (self.inputs - mean) * -0.5 * (variance+ self.epsilon)**(-1.5), axis=0)
+        dmean = micro.sum(dx_normalized * -1.0 / micro.sqrt(variance+ self.epsilon), axis=0)
+        self.dinputs = dx_normalized / micro.sqrt(variance+ self.epsilon) + dvar * 2.0 * (self.inputs - mean) / D + dmean / D
         return self.dinputs
  

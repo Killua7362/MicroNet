@@ -4,8 +4,7 @@ import numpy as np
 import tensorflow as tf
 import json
 from torch.nn import functional as F
-import torch
-import time
+import cupy as cp
 sys.path.insert(0,os.path.abspath(""))
 
 from micro.activations import Gelu,SoftMax
@@ -46,7 +45,7 @@ class MultiHeadAttention:
     def __call__(self,inputs):
         inputs = inputs
         x = self.dense_1(inputs)
-        mask = (1-tri(inputs.shape[0],dtype=inputs.dtype)) * -1e10
+        mask = (1-tri(inputs.shape[0],dtype=cp.float32)) * -1e10
         qkv = split(x,3,axis=-1)
         q = split(qkv[0],self.n_heads,axis=-1)
         k = split(qkv[1],self.n_heads,axis=-1)
@@ -99,12 +98,12 @@ class GPT(Model):
 def regress(model,inputs,targets,n_tokens_gen,wte,wpe):
     from tqdm import tqdm
     for _ in tqdm(range(n_tokens_gen),'generating'):
-        embds = wte[inputs] + wpe[np.arange(len(inputs))]
+        embds = wte[inputs] + wpe[range(len(inputs))]
         logits = model(embds)
         logits = logits @ wte.T
         next_id = argmax(logits[-1]).sum()
-        next_id = next_id.data[()]
-        inputs.append(next_id)
+        next_id = next_id.data
+        inputs.append(int(next_id))
     return inputs[len(inputs)-n_tokens_gen:]
 
 loss_fn = CategoricalCrossEntropy()
@@ -115,7 +114,7 @@ models_dir = 'Weights'
 path = os.path.join(models_dir,model_name)
 check_point = tf.train.latest_checkpoint(path)
 hparams = json.load(open(os.path.join(path,'hparams.json')))
-params = get_param_dict(check_point,hparams)
+params = get_param_dict(check_point,hparams,device='cuda')
 encoder = get_encoder(model_name,models_dir)
 
 inputs = encoder.encode(text)
@@ -126,10 +125,10 @@ targets = encoder.encode(target)
 
 gpt = GPT(hparams)
 
-wte = Tensor(params['wte'],requires_grad=True)
-wpe = Tensor(params['wpe'],requires_grad=True)
+wte = Tensor(params['wte'],requires_grad=True,device='cuda')
+wpe = Tensor(params['wpe'],requires_grad=True,device='cuda')
 
 load_params(gpt,params,emb=False)
-out = regress(gpt,inputs,targets,3,wte,wpe)
+out = regress(gpt,inputs,targets,10,wte,wpe)
 print(encoder.decode(out))
 # 24915   388 11887   318

@@ -1,6 +1,7 @@
 import os
 import requests
 import sys
+
 models_dir = 'Weights'
 model_size = '1558M'
 path = os.path.join(models_dir,model_size)

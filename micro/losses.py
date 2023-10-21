@@ -1,11 +1,9 @@
-import numpy as np
-import cupy as cp
-
+import micro
 class Loss:
     def calculate(self,output,y):
         sample_losses = self.forward(output,y)
-        data_loss = cp.mean(sample_losses)
-        self.accumulated_sum += cp.sum(sample_losses)
+        data_loss = micro.mean(sample_losses)
+        self.accumulated_sum += micro.sum(sample_losses)
         self.accumulated_count += len(sample_losses)
         return data_loss
     def calculate_accum(self):
@@ -20,19 +18,19 @@ class Loss:
 class CategoricalCrossEntropy(Loss):
     def forward(self,pred_val,true_val):
         samples = len(pred_val)
-        pred_val_clipped = cp.clip(pred_val,1e-7,1 - 1e-7)
+        pred_val_clipped = micro.clip(pred_val,1e-7,1 - 1e-7)
         if len(true_val.shape) == 1:
             correct_confidence = pred_val_clipped[range(samples),true_val]
         elif len(true_val.shape) == 2:
-            correct_confidence = cp.sum(
+            correct_confidence = micro.sum(
                 pred_val_clipped * true_val,axis = 1
             )
-        return  -cp.log(correct_confidence)
+        return  -micro.log(correct_confidence)
 
     def backward(self,dvalues,true_val):
         samples = len(dvalues)
         labels = len(dvalues[0])
         if len(true_val.shape) == 1:
-            true_val = cp.eye(labels)[true_val]
+            true_val = micro.eye(labels)[true_val]
         self.dinputs = -true_val / dvalues
         self.dinputs = self.dinputs/samples

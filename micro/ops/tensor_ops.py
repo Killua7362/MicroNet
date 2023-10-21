@@ -27,32 +27,32 @@ def eye(N,M=None,k=0,dtype=cp.float64):
      return cp.eye(N,M,k,dtype)
     
 #np.zeros_like
-def zeros_like(a,dtype=None,order='K',shape=None):
+def zeros_like(a,*args,dtype=np.float64,**kwargs):
     if 'numpy' in str(type(a)):
-        return np.zeros_like(a,dtype,order,shape)
+        return np.zeros_like(a,*args,dtype=np.float64,**kwargs)
     if 'cupy' in str(type(a)):
-        return cp.zeros_like(a,dtype,order,shape)
+        return cp.zeros_like(a,*args,dtype=cp.float64,**kwargs)
     
 #np.ones_like
-def ones_like(a,dtype=None,order='K',shape=None):
+def ones_like(a,*args,**kwargs):
     if 'numpy' in str(type(a)):
-        return np.ones_like(a,dtype=dtype,order=order,shape=shape)
+        return np.ones_like(a,*args,**kwargs)
     if 'cupy' in str(type(a)):
-        return cp.ones_like(a,dtype=dtype,order=order,shape=shape)
+        return cp.ones_like(a,*args,**kwargs)
     
 #np.unravel_index
-def unravel_index(a,dims,order='C'):
+def unravel_index(a,shape=None,*args,**kwargs):
     if 'numpy' in str(type(a)):
-        return np.unravel_index(a,dims,order)
+        return np.unravel_index(a,shape,*args,**kwargs)
     if 'cupy' in str(type(a)):
-        return cp.unravel_index(a,dims,order)
+        return cp.unravel_index(a,shape,*args,**kwargs)
     
 #np.concatenate
-def concatenate(a,axis=0,out=None,*,dtype=None):
-    if 'numpy' in str(type(a)):
-        return np.concatenate(a,axis,out,dtype)
-    if 'cupy' in str(type(a)):
-        return cp.concatenate(a,axis,out,dtype)
+def concatenate(a,*args,**kwargs):
+    if 'numpy' in str(type(a[0])):
+        return np.concatenate(a,*args,**kwargs)
+    if 'cupy' in str(type(a[0])):
+        return cp.concatenate(a,*args,**kwargs)
     
 #np.clip
 def clip(a,a_min,a_max,out=None):
@@ -60,3 +60,9 @@ def clip(a,a_min,a_max,out=None):
         return np.clip(a,a_min,a_max,out=out)
     if 'cupy' in str(type(a)):
         return cp.clip(a,a_min,a_max,out=out)
+
+def squeeze(a,*args,**kwargs):
+    if 'numpy' in str(type(a)):
+        return np.squeeze(a,*args,**kwargs)
+    elif 'cupy' in str(type(a)):
+        return cp.sqeeze(a,*args,**kwargs)

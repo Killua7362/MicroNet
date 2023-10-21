@@ -16,11 +16,11 @@ def sum(a,axis=None,dtype=None,out=None,keepdims=False):
         return cp.sum(a,axis,dtype,out,keepdims)
     
 #np.argmax
-def argmax(a,axis=None,dtype=None,out=None,keepdims=False):
+def argmax(a,*args,**kwargs):
     if 'numpy' in str(type(a)):
-        return np.argmax(a,axis,dtype,out,keepdims)
+        return np.argmax(a,*args,**kwargs)
     elif 'cupy' in str(type(a)):
-        return cp.argmax(a,axis,dtype,out,keepdims)
+        return cp.argmax(a,*args,**kwargs)
     
 #np.maximum
 def maximum(x1,x2):
@@ -56,11 +56,11 @@ def max(x,axis,keepdims,out=None):
     if 'numpy' in str(type(x)):
         return np.max(x,axis,keepdims=keepdims,out=out)
     if 'cupy' in str(type(x)):
-        return cp.max(x,axis,keepdims)
+        return cp.max(x,axis,keepdims=keepdims,out=None)
     
 #np.var
 def var(x,axis=None,dtype=None,out=None,keepdims=False):
     if 'numpy' in str(type(x)):
-        return np.var(x,axis=None,dtype=None,out=None,keepdims=False)
+        return np.var(x,axis=axis,dtype=dtype,out=out,keepdims=keepdims)
     if 'cupy' in str(type(x)):
-        return cp.var(x,axis=None,dtype=None,out=None,keepdims=False)
+        return cp.var(x,axis=axis,dtype=dtype,out=out,keepdims=keepdims)
