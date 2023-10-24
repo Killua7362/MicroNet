@@ -1,10 +1,12 @@
 import os
 import requests
 import sys
+script_dir = os.path.dirname(sys.path[0])
+micro_net_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 
 models_dir = 'Weights'
-model_size = '124M'
-path = os.path.join(models_dir,model_size)
+model_size = '1558M'
+path = os.path.join(micro_net_dir,models_dir,model_size)
 try:
     os.makedirs(path,exist_ok=False)
 except FileExistsError:
