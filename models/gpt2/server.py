@@ -1,6 +1,6 @@
 import sys
 import os
-
+import base64
 script_dir = os.path.dirname(sys.path[0])
 micro_net_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 sys.path.append(micro_net_dir)
@@ -39,7 +39,7 @@ def regress(model,inputs,n_tokens_gen,wte,wpe):
         
     return inputs[len(inputs)-n_tokens_gen:]
 
-device = 'cuda'
+device = 'cpu'
 model_name = '1558M' 
 models_dir = 'Weights'
 
@@ -60,8 +60,32 @@ CORS(app)
 @app.route("/home",methods=['POST'])
 def return_home():
     input = request.json
-    input = encoder.encode(input)
-    out = regress(gpt,input,10,wte,wpe)
+    user = input['user']
+    bot = input['bot']
+    context = input['context']
+    
+    convo = []
+    for i,val in enumerate(user):
+        convo.append(f'user:{val} bot:{bot[i]}')
+    convo = ' '.join(convo)
+    question = input['question']
+    if len(user) == 0:
+        prompt = question
+    else:
+        prompt = f'This is the conversation between you and me, here bot is you and user is me\
+        {convo}\
+        This is my current question\
+        {question}\
+        '
+    if context != '':
+        base64_encoded = context.split(',')[1]
+        base64_bytes = base64.b64decode(base64_encoded)
+        context = base64_bytes.decode('utf-8')
+        prompt = 'This is the context: ' + context + ' ' + prompt
+    prompt = " ".join(prompt.split())
+    print(prompt)
+    input = encoder.encode(prompt)
+    out = regress(gpt,input,5,wte,wpe)
     return jsonify({
         'result':encoder.decode(out)
     })
