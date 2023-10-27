@@ -4,9 +4,7 @@ pipeline {
         stage('Pull Git') {
             steps {
                 echo 'Building..'
-                steps{
-                    checkout scm
-                }
+                checkout scm
             }
         }
         stage('Testing the repo'){
