@@ -1,0 +1,20 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: server-production
+spec:
+  replicas: 1
+  selector:
+      matchLabels:
+          app: server-app
+  template:
+    metadata:
+      name: backend
+      labels:
+        app: server-app
+    spec:
+      containers:
+      - name: backend
+        image: gcr.io/clowder-403113/testing/test-app:latest
+        ports: 
+          - containerPort: 5000
