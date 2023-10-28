@@ -20,14 +20,14 @@ pipeline {
         stage('Build and push docker image'){
                 steps{
                     script{
-                    sh 'docker build -t ${IMAGE_NAME}:lastest -f Dockerfile .'
+                    sh 'docker build -t ${IMAGE_NAME}:latest -f Dockerfile .'
                     withCredentials([file(credentialsId: "${CRED_ID}", variable: 'GCR_CRED')]){
                         sh 'cat "${GCR_CRED}" | docker login -u _json_key --password-stdin https://"${REPO_LOCATION}"-docker.pkg.dev'
-                        sh 'docker push ${IMAGE_NAME}:lastest'
+                        sh 'docker push ${IMAGE_NAME}:latest'
                         sh 'docker logout https://${REPO_LOCATION}-docker.pkg.dev'
                     }    
                     try{
-                        sh 'docker rmi ${IMAGE_NAME}:lastest'
+                        sh 'docker rmi ${IMAGE_NAME}:latest'
                     }catch(Exception e){
                         echo "oops"
                     }     
