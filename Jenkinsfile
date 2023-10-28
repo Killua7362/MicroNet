@@ -6,6 +6,7 @@ pipeline {
         REPO_LOCATION = "asia-south1"
         IMAGE_NAME = "${REPO_LOCATION}-docker.pkg.dev/${PROJECT}/${REPO_NAME}/${APP_NAME}"
         CRED_ID = 'gcloud-creds'
+        REGION = 'asia-south1'
     }
     agent any
     stages {
@@ -14,7 +15,7 @@ pipeline {
                 echo 'Cloning..'
                 deleteDir() // Clean the workspace
                 checkout scm
-                }
+}
         }
         stage('Build and push docker image'){
                 steps{
@@ -29,14 +30,25 @@ pipeline {
                     }
                 }
             }
-        stage('Upload to gke'){
+        stage('Create gke cluster'){
             steps{
                 script{
-                    sh "kubectl apply -f kubernetes/backend.yaml"
-                    sh "kubectl apply -f kubernetes/service.yaml"
+                        withCredentials([file(credentialsId: "${CRED_ID}", variable: 'GCR_CRED')]){
+                            sh("gcloud auth activate-service-account --key-file=${GCR_CRED}")
+                            try{
+                                sh "gcloud container clusters create-auto ${APP_NAME} --region ${REGION} --service-account=${GCR_CRED}"
+                            }catch (Exception e){
+                                echo "We got error"
+                            }
+                            sh "gcloud container clusters get-credentials ${APP_NAME} --region ${REGION}"
+                            sh "kubectl apply -f kubernetes/backend.yaml"
+                            sh "kubectl apply -f kubernetes/service.yaml"
+                            def out = sh(returnStdout:true, script: 'kubectl get services')
+                            echo out
+                        }
                 }
             }
         }
- 
+  
         }
     }

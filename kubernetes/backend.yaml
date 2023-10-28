@@ -1,7 +1,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: server-production
+  name: test-app
 spec:
   replicas: 1
   selector:
@@ -9,7 +9,6 @@ spec:
           app: server-app
   template:
     metadata:
-      name: backend
       labels:
         app: server-app
     spec:
@@ -18,3 +17,13 @@ spec:
         image: asia-south1-docker.pkg.dev/clowder-403113/testing/test-app:latest
         ports: 
           - containerPort: 5000
+        resources: 
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+            ephemeral-storage: "512Mi"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+            ephemeral-storage: "512Mi"
+

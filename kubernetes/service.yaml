@@ -3,11 +3,11 @@ kind: Service
 metadata:
   name: server-service
 spec:
+  type: LoadBalancer
+  selector:
+    app: server-app
   ports:
   - name: http
     port: 5000
     targetPort: 5000
-    protocol: TCP
-  selector:
-    app: server-app
-  type: LoadBalancer
+
