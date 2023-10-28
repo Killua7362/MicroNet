@@ -47,7 +47,7 @@ pipeline {
                             sh "gcloud container clusters get-credentials ${APP_NAME} --region ${REGION}"
                             sh "kubectl apply -f kubernetes/backend.yaml"
                             sh "kubectl apply -f kubernetes/service.yaml"
-                            def out = sh(returnStdout:true, script: 'kubectl get services')
+                            def out = sh(returnStdout:true, script: 'kubectl get pods ; kubectl get services')
                             echo out
                         }
                 }
