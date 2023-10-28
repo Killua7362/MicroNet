@@ -16,7 +16,7 @@ spec:
       - name: backend
         image: asia-south1-docker.pkg.dev/clowder-403113/testing/test-app:latest
         ports: 
-          - containerPort: 5000
+          - containerPort: 8080
         resources: 
           requests:
             memory: "128Mi"
