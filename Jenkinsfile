@@ -40,7 +40,7 @@ pipeline {
                         withCredentials([file(credentialsId: "${CRED_ID}", variable: 'GCR_CRED')]){
                             sh("gcloud auth activate-service-account --key-file=${GCR_CRED}")
                             try{
-                                sh "gcloud container clusters create-auto ${APP_NAME} --region ${REGION} --service-account=${GCR_CRED}"
+                                sh "gcloud container clusters create-auto ${APP_NAME} --region ${REGION} --service-account=clowder@clowder-403113.iam.gserviceaccount.com"
                             }catch (Exception e){
                                 echo "We got error"
                             }
