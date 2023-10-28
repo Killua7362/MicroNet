@@ -29,5 +29,14 @@ pipeline {
                     }
                 }
             }
+        stage('Upload to gke'){
+            steps{
+                script{
+                    sh "kubectl apply -f kubernetes/backend.yaml"
+                    sh "kubectl apply -f kubernetes/service.yaml"
+                }
+            }
+        }
+ 
         }
     }

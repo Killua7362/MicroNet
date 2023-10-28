@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: backend
-        image: gcr.io/clowder-403113/testing/test-app:latest
+        image: asia-south1-docker.pkg.dev/clowder-403113/testing/test-app:latest
         ports: 
           - containerPort: 5000
