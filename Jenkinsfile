@@ -25,8 +25,12 @@ pipeline {
                         sh 'cat "${GCR_CRED}" | docker login -u _json_key --password-stdin https://"${REPO_LOCATION}"-docker.pkg.dev'
                         sh 'docker push ${IMAGE_NAME}:lastest'
                         sh 'docker logout https://${REPO_LOCATION}-docker.pkg.dev'
-                    }                
+                    }    
+                    try{
                         sh 'docker rmi ${IMAGE_NAME}:lastest'
+                    }catch(Exception e){
+                        echo "oops"
+                    }     
                     }
                 }
             }
