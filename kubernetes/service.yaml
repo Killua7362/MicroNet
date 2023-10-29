@@ -7,6 +7,6 @@ spec:
   selector:
     app: test-app
   ports:
-    - port: 80
+    - port: 5000
       targetPort: 5000
 
