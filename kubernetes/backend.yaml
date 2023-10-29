@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: deployed-app
-        image: asia-south1-docker.pkg.dev/clowder-403113/testing/test-app:latest
+        image: asia-south1-docker.pkg.dev/clowder-403113/clowder-images/test-app:latest
         imagePullPolicy: Always
         ports: 
           - containerPort: 5000
