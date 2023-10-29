@@ -54,7 +54,7 @@ pipeline {
                             }
                             def ip = sh(returnStdout:true,script: "gcloud compute addresses describe ${APP_NAME} --region=${REGION} | grep -oP \'address: \\K[\\d.]+\' ")
                             echo ip
-                            sh "kubectl patch service test-app --type merge -p '{\"spec\":{\"ports\":[{\"name\":\"https\", \"port\":80, \"targetPort\":5000}]}}'"
+                            sh "kubectl patch svc test-app -p '{\"spec\": {\"loadBalancerIP\": \"${ip}\"}}'"
                             def out = sh(returnStdout:true, script: 'kubectl get pods ; kubectl get services')
                             echo out
                         }
