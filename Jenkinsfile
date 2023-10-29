@@ -52,7 +52,7 @@ pipeline {
                             }catch(Exception e){
                                 echo "Address already exist"
                             }
-                            def ip = sh(returnStdout:true,script: "gcloud compute addresses describe ${APP_NAME} --region=${REGION} | grep -oP \'address: \\K[\\d.]+\' ")
+                            def ip = sh(returnStdout:true,script: "gcloud compute addresses describe ${APP_NAME} --region=${REGION} | grep -oP \'address: \\K[\\d.]+\' ").trim()
                             echo ip
                             sh "kubectl patch svc test-app -p '{\"spec\": {\"loadBalancerIP\": \"${ip}\"}}'"
                             def out = sh(returnStdout:true, script: 'kubectl get pods ; kubectl get services')
