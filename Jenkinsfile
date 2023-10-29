@@ -52,7 +52,7 @@ pipeline {
                             }catch(Exception e){
                                 echo "Address already exist"
                             }
-                            def ip = sh(returnStdout:true,script: "gcloud compute addresses describe ${APP_NAME} --format=\"json\" | jq -r \".address\"")
+                            def ip = sh(returnStdout:true,script: "gcloud compute addresses describe ${APP_NAME}")
                             echo ip
                             sh "kubectl patch service test-app --type merge -p '{\"spec\":{\"ports\":[{\"name\":\"https\", \"port\":80, \"targetPort\":5000}]}}'"
                             def out = sh(returnStdout:true, script: 'kubectl get pods ; kubectl get services')
