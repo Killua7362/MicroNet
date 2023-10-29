@@ -2,7 +2,7 @@ pipeline {
     environment {
         PROJECT = "clowder-403113"
         APP_NAME = "test-app"
-        REPO_NAME = "testing"
+        REPO_NAME = "clowder-images"
         REPO_LOCATION = "asia-south1"
         IMAGE_NAME = "${REPO_LOCATION}-docker.pkg.dev/${PROJECT}/${REPO_NAME}/${APP_NAME}"
         CRED_ID = 'gcloud-creds'
