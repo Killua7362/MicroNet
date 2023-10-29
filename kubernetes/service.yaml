@@ -7,6 +7,7 @@ spec:
   selector:
     app: test-app
   ports:
-    - port: 5000
+    - name: https
+      port: 5000
       targetPort: 5000
 
