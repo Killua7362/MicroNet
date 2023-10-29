@@ -47,6 +47,7 @@ pipeline {
                             sh "gcloud container clusters get-credentials ${APP_NAME} --region ${REGION}"
                             sh "kubectl apply -f kubernetes/backend.yaml"
                             sh "kubectl apply -f kubernetes/service.yaml"
+                            sh "kubectl patch svc test-app --type merge -p '{"spec":{"ports": [{"port": 80,"targetPort":5000}]}}' "
                             def out = sh(returnStdout:true, script: 'kubectl get pods ; kubectl get services')
                             echo out
                         }
