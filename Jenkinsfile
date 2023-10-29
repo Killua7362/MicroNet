@@ -42,11 +42,18 @@ pipeline {
                             try{
                                 sh "gcloud container clusters create-auto ${APP_NAME} --region ${REGION} --service-account=clowder@clowder-403113.iam.gserviceaccount.com"
                             }catch (Exception e){
-                                echo "We got error"
+                                echo "cluster exists"
                             }
                             sh "gcloud container clusters get-credentials ${APP_NAME} --region ${REGION}"
                             sh "kubectl apply -f kubernetes/backend.yaml"
                             sh "kubectl apply -f kubernetes/service.yaml"
+                            try{
+                                sh "gcloud compute addresses create ${APP_NAME} --region=${REGION}"
+                            }catch(Exception e){
+                                echo "Address already exist"
+                            }
+                            def ip = sh(returnStdout:true,script: "gcloud compute addresses describe ${APP_NAME} --format=\"json\" | jq -r \".address\"")
+                            echo ip
                             sh "kubectl patch service test-app --type merge -p '{\"spec\":{\"ports\":[{\"name\":\"https\", \"port\":80, \"targetPort\":5000}]}}'"
                             def out = sh(returnStdout:true, script: 'kubectl get pods ; kubectl get services')
                             echo out
