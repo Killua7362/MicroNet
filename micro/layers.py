@@ -2,7 +2,7 @@ import numpy as np
 from micro.tensor import Tensor,Hooks
 from typing import Iterator
 import inspect
-import cupy as cp
+import imp
 import micro
 
 class BaseLayer:

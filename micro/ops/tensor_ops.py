@@ -1,6 +1,9 @@
 import numpy as np
-import cupy as cp
-
+try:
+    import cupy as cp
+except ModuleNotFoundError as err:
+    import numpy as cp
+   
 #np.empty_liek
 def empty_like(a,dtype=None,order='K',shape=None):
     if 'numpy' in str(type(a)):

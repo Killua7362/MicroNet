@@ -1,8 +1,12 @@
 import tensorflow as tf
 import numpy as np
 import re
-import cupy as cp
 
+try:
+    import cupy as cp
+except ModuleNotFoundError as err:
+    pass
+    
 def nested_params(dict,keys,val):
     if not keys:
         return val

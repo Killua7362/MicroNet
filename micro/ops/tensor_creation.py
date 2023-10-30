@@ -1,7 +1,9 @@
 import numpy as np
-import cupy as cp
-
-#np.ones
+try:
+    import cupy as cp
+except ModuleNotFoundError as err:
+    import numpy as cp
+    
 def ones(shape,dtype=np.float64,device='cpu'):
     if device == 'cpu':
         return np.ones(shape,dtype=dtype)

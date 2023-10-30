@@ -1,6 +1,9 @@
 import numpy as np
-import cupy as cp
-
+try:
+    import cupy as cp
+except ModuleNotFoundError as err:
+    import numpy as cp
+   
 #np.mean
 def mean(a,axis=None,dtype=None,out=None,keepdims=False):
     if 'numpy' in str(type(a)):

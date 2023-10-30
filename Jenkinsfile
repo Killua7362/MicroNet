@@ -20,6 +20,7 @@ pipeline {
         stage('Build and push docker image'){
                 steps{
                     script{
+                    sh 'docker system prune --all --force'
                     sh 'docker build -t ${IMAGE_NAME}:latest -f Dockerfile .'
                     withCredentials([file(credentialsId: "${CRED_ID}", variable: 'GCR_CRED')]){
                         sh 'cat "${GCR_CRED}" | docker login -u _json_key --password-stdin https://"${REPO_LOCATION}"-docker.pkg.dev'

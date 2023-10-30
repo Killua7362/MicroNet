@@ -8,9 +8,17 @@ sys.path.append(micro_net_dir)
 import tensorflow as tf
 import json
 from torch.nn import functional as F
-import cupy as cp
+
+try:
+    import cupy as cp
+    mempool = cp.get_default_memory_pool()
+    pinned_mempool = cp.get_default_pinned_memory_pool()
+except ModuleNotFoundError as err:
+    pass
+    
 from encoder import get_encoder
 from utils import get_param_dict
+from get_weights import get_weights
 
 from micro.utils import load_params
 from micro.tensor import Tensor,argmax
@@ -18,9 +26,6 @@ from model import GPT
 
 from flask import Flask,jsonify,request
 from flask_cors import CORS
-
-mempool = cp.get_default_memory_pool()
-pinned_mempool = cp.get_default_pinned_memory_pool()
 
 def regress(model,inputs,n_tokens_gen,wte,wpe):
     from tqdm import tqdm
@@ -34,15 +39,17 @@ def regress(model,inputs,n_tokens_gen,wte,wpe):
         
         del embds
         del logits
-        mempool.free_all_blocks()
-        pinned_mempool.free_all_blocks()
-        
+        try:
+            mempool.free_all_blocks()
+            pinned_mempool.free_all_blocks()
+        except:
+            pass
     return inputs[len(inputs)-n_tokens_gen:]
 
 device = 'cpu'
-model_name = '1558M' 
+model_name = '124M' 
 models_dir = 'Weights'
-
+get_weights(models_dir,model_name)
 path = os.path.join(micro_net_dir,models_dir,model_name)
 check_point = tf.train.latest_checkpoint(path)
 hparams = json.load(open(os.path.join(path,'hparams.json')))
@@ -82,13 +89,12 @@ def return_home():
         base64_bytes = base64.b64decode(base64_encoded)
         context = base64_bytes.decode('utf-8')
         prompt = 'This is the context: ' + context + ' ' + prompt
+        
     prompt = " ".join(prompt.split())
-    print(prompt)
     input = encoder.encode(prompt)
-    out = regress(gpt,input,5,wte,wpe)
+    out = regress(gpt,input,10,wte,wpe)
     return jsonify({
         'result':encoder.decode(out)
     })
-
 if __name__ == '__main__':
-    app.run(debug=True,port=8000)
+    app.run(host='0.0.0.0',port=8000)

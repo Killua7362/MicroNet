@@ -1,11 +1,17 @@
 from typing import List, NamedTuple,Callable,Optional,Union
 import numpy as np
-import cupy as cp
+
+try:
+    import cupy as cp
+except ModuleNotFoundError as err:
+    import numpy as cp
+    
+    
 import micro
 
 class Hooks(NamedTuple):
     tensor:'Tensor'
-    grad_fn: Callable[[np.ndarray | cp.ndarray],np.ndarray | cp.ndarray]
+    grad_fn: Callable[[Union[np.ndarray,cp.ndarray]],Union[np.ndarray,cp.ndarray]]
 
 class Tensor:
     def __init__(self,data,requires_grad=False,nodes=[],device=''):

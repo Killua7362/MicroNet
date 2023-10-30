@@ -1,6 +1,9 @@
 import numpy as np 
-import cupy as cp
-
+try:
+    import cupy as cp
+except ModuleNotFoundError as err:
+    import numpy as cp
+   
 #np.random.randn
 def randn(*size,device='cpu',**kwargs):
     if device == 'cpu':
