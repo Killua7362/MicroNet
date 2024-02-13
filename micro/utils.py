@@ -47,3 +47,64 @@ def load_params(model,params,emb=True):
         for i,val in enumerate(params[:-2]):
             model.instances[i].trainable_params = update_dict(model.instances[i].trainable_params,val)
         
+def args_expander(f,transpiled_graph,args,kwargs):
+    from torch import tensor
+    #traced_graph is passed so that we can get it from locals() after python exec
+    ##gets the source code and removes the indentation error
+    if args == None:
+        args = []
+    if kwargs == None:
+        kwargs = {}
+    args = list(args)
+    source = textwrap.dedent(inspect.getsource(f))
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            node.decorator_list = []
+            node.args.args=[]
+            node.args.defaults = []
+            if args != ():
+                ##goes through the args and creates t1,t2,...,len(args) temporary variables inside function definition call
+                for i,val in enumerate(args):
+                    args_arg = ast.arg()
+                    args_arg.arg = 't'+str(i)
+                    node.args.args.append(args_arg)
+
+            if kwargs != {}:
+                ##goes through kwargs and and creates kwargs1=None,kwarg2=None,...len(kwargs) assignments inside function definition call
+                for key,val in kwargs.items():
+                    arg = ast.arg()
+                    arg.arg = key
+                    node.args.args.append(arg)
+                    const = ast.Constant()
+                    const.value = None
+                    node.args.defaults.append(const)
+        elif isinstance(node,ast.Call):
+            node.args = []
+            #goes through args and adds all the constants
+            if args!= ():
+                for i,val in enumerate(args):
+                    s = StringIO()
+                    print(val, file=s) #does not print anything
+                    result = s.getvalue()
+                    node.args.append(ast.parse(result).body[0].value)
+            ##goes through kwargs and creates kwarg1=kwarg1,kwarg2=kwarg2,....len(kwargs) inside model call
+            node.keywords = []
+            if kwargs != {} :
+                for key in kwargs.keys():
+                    keyword = ast.keyword()
+                    keyword.arg = key
+                    value = ast.Name()
+                    value.id = key
+                    value.ctx = ast.Load()
+                    keyword.value = value
+                    node.keywords.append(keyword)
+
+    tree = ast.fix_missing_locations(tree)
+    name = f.__code__.co_name
+    ##runs a function once so that it is store in python local/global stack
+    code = compile(tree, name, 'exec')
+    temp_locals = dict(locals())
+    exec(code, temp_locals)
+    ##returns a modified function
+    return temp_locals[name]
